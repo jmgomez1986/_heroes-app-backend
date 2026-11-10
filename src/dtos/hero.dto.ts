@@ -1,6 +1,7 @@
 export interface IHero {
   name: string;
   alias: string;
+  slug: string;
   powers: string[];
   description: string;
   team: string;

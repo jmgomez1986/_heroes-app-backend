@@ -12,10 +12,21 @@ const heroSchema = new Schema({
     required: true,
     trim: true,
   },
-  powers: [{
+  slug: {
     type: String,
+    required: true,
     trim: true,
-  }],
+    // La unicidad la impone la DB, no los checks a nivel app: estos pueden
+    // perder una carrera con requests concurrentes. Las violaciones se
+    // manifiestan como E11000 y el error handler las mapea a 409.
+    unique: true,
+  },
+  powers: [
+    {
+      type: String,
+      trim: true,
+    },
+  ],
   description: {
     type: String,
     required: true,

@@ -4,6 +4,7 @@ import cors from 'cors';
 import { router } from './routers/router';
 import { connectDB } from './config/db';
 import { corsConf } from './config/cors';
+import { errorHandler } from './middleware/errors';
 
 connectDB();
 
@@ -16,3 +17,6 @@ app.use(cors(corsConf));
 app.use(express.json());
 
 app.use('/api', router);
+
+// Error handler global (debe registrarse ultimo)
+app.use(errorHandler);
