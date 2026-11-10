@@ -26,7 +26,9 @@ export const addHero = async (req: Request, resp: Response) => {
   const hero = new Hero(req.body);
   hero.slug = heroSlug;
   await hero.save();
-  resp.status(201).json({ msg: 'Hero created correctly.' });
+  // Se devuelve el documento creado: el front necesita el slug y el _id para
+  // navegar al recurso sin hacer un segundo GET.
+  resp.status(201).json({ msg: 'Hero created correctly.', response: hero });
 };
 
 export const getHeroes = async (req: Request, resp: Response) => {

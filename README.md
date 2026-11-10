@@ -75,7 +75,7 @@ Campos requeridos en el body: `name`, `alias`, `description`, `team`, `status`, 
 
 El **slug se genera automáticamente a partir del alias** (`Superman Prime` → `superman-prime`) y no se acepta del body.
 
-- `201` — creado. Body: `{ "msg": "Hero created correctly." }`
+- `201` — creado. Body: `{ "msg": "Hero created correctly.", "response": { ...heroe creado con su slug e _id } }`
 - `400` — falta un campo requerido. Body: `{ "errors": [ { "msg": "Description is required", ... } ] }`
 - `409` — ya existe un héroe con el mismo alias, o cuyo alias genera el mismo slug
 
