@@ -31,7 +31,16 @@ API REST para administrar un catálogo de superhéroes: creación, consulta pagi
 | `npm run dev:api` | Igual que `dev`, pero también acepta requests sin `Origin` (curl, Postman) |
 | `npm run build` | Compila a JavaScript en `dist/` |
 | `npm start` | Ejecuta la versión compilada desde `dist/` |
-| `npm run seed` | **Pisa** la colección `heroes`: borra los datos actuales y carga los 25 héroes de `scripts/data/heroes-full-alias.json` (restaurar catálogo) |
+| `npm run seed` | **Pisa** la colección `heroes`: borra los datos actuales y carga los 25 héroes de `src/data/heroes-full-alias.json` (restaurar catálogo) |
+
+## Tests
+
+- `npm run test` — corre la suite completa (vitest + supertest)
+- `npm run test:coverage` — ídem + reporte HTML en `coverage/` (abrir `coverage/index.html`)
+
+Los tests **no tocan la base de datos real**: los casos que consultan datos corren contra una **MongoDB en memoria** (`mongodb-memory-server`) que se crea y destruye con la suite. `NODE_ENV=test` (lo setea Vitest automáticamente) habilita el CORS para clientes sin `Origin`.
+
+Cobertura actual: validación de GET/POST (`400` con mensajes exactos, incluida la acumulación de errores) y paginación completa del GET (defaults, ventanas exactas por `_id`, última página parcial, página inexistente con metadata intacta y colección vacía).
 
 ## Variables de entorno
 
@@ -148,6 +157,9 @@ src/
 │   └── db.ts          # Conexión a MongoDB via mongoose
 ├── constants/
 │   └── default.constants.ts   # Defaults de paginación y campos editables
+├── data/
+│   ├── catalog.ts      # Dataset tipado con IHero + seedHeroes (con _id explícito)
+│   └── heroes-full-alias.json   # Catálogo de héroes (única fuente de verdad)
 ├── dtos/
 │   └── hero.dto.ts    # Interfaces IHero e IHeroPageResponse
 ├── handlers/
@@ -159,6 +171,10 @@ src/
 │   └── Hero.ts        # Schema de mongoose (slug con índice único)
 ├── routers/
 │   └── router.ts      # Rutas + validaciones de input por ruta
+├── tests/
+│   ├── heroes.test.ts           # Validación de GET/POST (400s, sin DB)
+│   ├── heroes.db.test.ts        # Paginación del GET contra Mongo en memoria
+│   └── heroes.empty-db.test.ts  # Edge: colección vacía (metadata en cero)
 ├── server.ts          # Configuración de Express (CORS, JSON, rutas, error handler)
 └── index.ts           # Punto de entrada: levanta el server en PORT
 ```
