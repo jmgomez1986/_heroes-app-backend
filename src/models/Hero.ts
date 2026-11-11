@@ -58,4 +58,4 @@ const heroSchema = new Schema({
   },
 });
 
-export const Hero = mongoose.model<IHero>('Hero', heroSchema);
+export const Hero = mongoose.model<IHero>('Hero', heroSchema, 'heroes');
