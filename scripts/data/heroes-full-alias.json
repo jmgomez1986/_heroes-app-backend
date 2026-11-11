@@ -1,0 +1,467 @@
+[
+  {
+    "name": "Clark Kent",
+    "slug": "superman",
+    "alias": "Superman",
+    "powers": [
+      "Súper fuerza",
+      "Vuelo",
+      "Visión de calor",
+      "Visión de rayos X",
+      "Invulnerabilidad",
+      "Súper velocidad"
+    ],
+    "description": "El Último Hijo de Krypton, protector de la Tierra y símbolo de esperanza para toda la humanidad.",
+    "team": "Liga de la Justicia",
+    "image": "",
+    "status": "Active",
+    "category": "Hero",
+    "universe": "DC"
+  },
+  {
+    "name": "Bruce Wayne",
+    "slug": "batman",
+    "alias": "Batman",
+    "powers": [
+      "Artes marciales",
+      "Habilidades de detective",
+      "Tecnología avanzada",
+      "Sigilo",
+      "Genio táctico"
+    ],
+    "description": "El Caballero Oscuro de Ciudad Gótica, que utiliza el miedo como arma contra el crimen y la corrupción.",
+    "team": "Liga de la Justicia",
+    "image": "",
+    "status": "Active",
+    "category": "Hero",
+    "universe": "DC"
+  },
+  {
+    "name": "Diana Prince",
+    "slug": "mujer-maravilla",
+    "alias": "Mujer Maravilla",
+    "powers": [
+      "Súper fuerza",
+      "Vuelo",
+      "Lazo de la Verdad",
+      "Habilidad de combate",
+      "Poderes divinos",
+      "Inmortalidad"
+    ],
+    "description": "Princesa amazona y guerrera, campeona de la verdad, la justicia y la igualdad.",
+    "team": "Liga de la Justicia",
+    "image": "",
+    "status": "Active",
+    "category": "Hero",
+    "universe": "DC"
+  },
+  {
+    "name": "Barry Allen",
+    "slug": "flash",
+    "alias": "Flash",
+    "powers": [
+      "Súper velocidad",
+      "Viaje en el tiempo",
+      "Fuerza de la velocidad",
+      "Intangibilidad",
+      "Generación de rayos"
+    ],
+    "description": "El hombre más rápido del mundo, protector de Central City y guardián de la línea temporal.",
+    "team": "Liga de la Justicia",
+    "image": "",
+    "status": "Active",
+    "category": "Hero",
+    "universe": "DC"
+  },
+  {
+    "name": "Peter Parker",
+    "slug": "spider-man",
+    "alias": "Spider-Man",
+    "powers": [
+      "Escalar muros",
+      "Sentido arácnido",
+      "Lanzar telarañas",
+      "Agilidad sobrehumana",
+      "Reflejos mejorados"
+    ],
+    "description": "Tu amistoso vecino Spider-Man, con gran poder viene una gran responsabilidad.",
+    "team": "Vengadores",
+    "image": "",
+    "status": "Active",
+    "category": "Hero",
+    "universe": "Marvel"
+  },
+  {
+    "name": "Tony Stark",
+    "slug": "iron-man",
+    "alias": "Iron Man",
+    "powers": [
+      "Armadura potenciada",
+      "Intelecto de genio",
+      "Tecnología avanzada",
+      "Vuelo",
+      "Repulsores de energía"
+    ],
+    "description": "Magnate e inventor genio que utiliza su tecnología para proteger el mundo.",
+    "team": "Vengadores",
+    "image": "",
+    "status": "Active",
+    "category": "Hero",
+    "universe": "Marvel"
+  },
+  {
+    "name": "Steve Rogers",
+    "slug": "capitan-america",
+    "alias": "Capitán América",
+    "powers": [
+      "Fuerza aumentada",
+      "Velocidad aumentada",
+      "Durabilidad aumentada",
+      "Dominio del escudo",
+      "Liderazgo"
+    ],
+    "description": "El primer vengador, símbolo de libertad y justicia gracias al suero del súper soldado.",
+    "team": "Vengadores",
+    "image": "",
+    "status": "Active",
+    "category": "Hero",
+    "universe": "Marvel"
+  },
+  {
+    "name": "Arthur Curry",
+    "slug": "aquaman",
+    "alias": "Aquaman",
+    "powers": [
+      "Respiración bajo el agua",
+      "Súper fuerza",
+      "Telepatía",
+      "Maestría del tridente",
+      "Control de vida marina"
+    ],
+    "description": "Rey de Atlantis y protector de los siete mares, puente entre la tierra y el océano.",
+    "team": "Liga de la Justicia",
+    "image": "",
+    "status": "Active",
+    "category": "Hero",
+    "universe": "DC"
+  },
+  {
+    "name": "Hal Jordan",
+    "slug": "linterna-verde",
+    "alias": "Linterna Verde",
+    "powers": [
+      "Anillo de poder",
+      "Construcciones de energía",
+      "Vuelo",
+      "Campos de fuerza",
+      "Voluntad inquebrantable"
+    ],
+    "description": "Piloto de pruebas elegido por el Cuerpo de Linternas Verdes para proteger el sector espacial 2814.",
+    "team": "Liga de la Justicia",
+    "image": "",
+    "status": "Active",
+    "category": "Hero",
+    "universe": "DC"
+  },
+  {
+    "name": "Victor Stone",
+    "slug": "cyborg",
+    "alias": "Cyborg",
+    "powers": [
+      "Mejoras cibernéticas",
+      "Tecnopatía",
+      "Cañón de energía",
+      "Vuelo",
+      "Procesamiento de datos"
+    ],
+    "description": "Héroe mitad humano y mitad máquina con habilidades tecnológicas avanzadas.",
+    "team": "Liga de la Justicia",
+    "image": "",
+    "status": "Active",
+    "category": "Hero",
+    "universe": "DC"
+  },
+  {
+    "name": "Robin",
+    "slug": "robin",
+    "alias": "Robin",
+    "powers": [
+      "Artes marciales",
+      "Habilidades de detective",
+      "Tecnología avanzada",
+      "Sigilo",
+      "Genio táctico"
+    ],
+    "description": "Robin es el hijo adoptivo de Batman y uno de los miembros más queridos de la Liga de la Justicia.",
+    "team": "Liga de la Justicia",
+    "image": "",
+    "status": "Active",
+    "category": "Hero",
+    "universe": "DC"
+  },
+  {
+    "name": "Jean Grey",
+    "slug": "fenix",
+    "alias": "Fénix",
+    "powers": [
+      "Telepatía",
+      "Telequinesis",
+      "Fuerza Fénix",
+      "Conciencia cósmica",
+      "Resurrección"
+    ],
+    "description": "Mutante poderosa, telépata y telequinética, anfitriona de la fuerza cósmica Fénix.",
+    "team": "X-Men",
+    "image": "",
+    "status": "Active",
+    "category": "Hero",
+    "universe": "Marvel"
+  },
+  {
+    "name": "Ororo Munroe",
+    "slug": "tormenta",
+    "alias": "Tormenta",
+    "powers": [
+      "Manipulación del clima",
+      "Vuelo",
+      "Proyección de energía",
+      "Combatiente experta",
+      "Resistencia a temperaturas extremas"
+    ],
+    "description": "Líder mutante y diosa capaz de controlar los elementos.",
+    "team": "X-Men",
+    "image": "",
+    "status": "Active",
+    "category": "Hero",
+    "universe": "Marvel"
+  },
+  {
+    "name": "Charles Xavier",
+    "slug": "profesor-x",
+    "alias": "Profesor X",
+    "powers": [
+      "Telepatía",
+      "Control mental",
+      "Creación de ilusiones",
+      "Proyección mental",
+      "Intelecto de genio"
+    ],
+    "description": "Fundador de los X-Men y poderoso telépata que lucha por la coexistencia pacífica entre mutantes y humanos.",
+    "team": "X-Men",
+    "image": "",
+    "status": "Active",
+    "category": "Hero",
+    "universe": "Marvel"
+  },
+  {
+    "name": "Barbara Gordon",
+    "slug": "batichica",
+    "alias": "Batichica",
+    "powers": [
+      "Artes marciales",
+      "Hackeo",
+      "Sigilo",
+      "Acrobacia",
+      "Habilidades de detective"
+    ],
+    "description": "Brillante luchadora contra el crimen y símbolo de esperanza en Gotham, combinando intelecto y coraje.",
+    "team": "Batfamilia",
+    "image": "",
+    "status": "Active",
+    "category": "Hero",
+    "universe": "DC"
+  },
+  {
+    "name": "Billy Batson",
+    "slug": "shazam",
+    "alias": "Shazam",
+    "powers": [
+      "Relámpago mágico",
+      "Súper fuerza",
+      "Vuelo",
+      "Invulnerabilidad",
+      "Sabiduría de Salomón"
+    ],
+    "description": "Un joven que se transforma en el mortal más poderoso de la Tierra al pronunciar una sola palabra.",
+    "team": "Liga de la Justicia",
+    "image": "",
+    "status": "Active",
+    "category": "Hero",
+    "universe": "DC"
+  },
+  {
+    "name": "T'Challa",
+    "slug": "pantera-negra",
+    "alias": "Pantera Negra",
+    "powers": [
+      "Fuerza aumentada",
+      "Traje de vibranio",
+      "Sentidos mejorados",
+      "Maestro táctico",
+      "Artes marciales"
+    ],
+    "description": "Rey de Wakanda y protector de su gente, un héroe con habilidades y recursos incomparables.",
+    "team": "Vengadores",
+    "image": "",
+    "status": "Deceased",
+    "category": "Hero",
+    "universe": "Marvel"
+  },
+  {
+    "name": "Raven",
+    "slug": "raven",
+    "alias": "Raven",
+    "powers": [
+      "Manipulación de la oscuridad",
+      "Telepatía",
+      "Teletransportación",
+      "Empatía",
+      "Magia"
+    ],
+    "description": "Empata mitad demonio con enormes poderes mágicos y una lucha constante contra su naturaleza oscura.",
+    "team": "Jóvenes Titanes",
+    "image": "",
+    "status": "Active",
+    "category": "Hero",
+    "universe": "DC"
+  },
+  {
+    "name": "Victor Fries",
+    "slug": "mr-freeze",
+    "alias": "Mr. Freeze",
+    "powers": [
+      "Control del hielo",
+      "Traje criogénico",
+      "Armas de hielo",
+      "Resistencia al frío extremo",
+      "Inteligencia científica"
+    ],
+    "description": "Científico brillante obsesionado con salvar a su esposa enferma, utiliza tecnología criogénica para sus planes criminales.",
+    "team": "Solo",
+    "image": "",
+    "status": "Active",
+    "category": "Villain",
+    "universe": "DC"
+  },
+  {
+    "name": "Bizarro",
+    "slug": "bizarro",
+    "alias": "Bizarro",
+    "powers": [
+      "Super fuerza",
+      "Super velocidad",
+      "Vuelo",
+      "Invencibilidad",
+      "Aliento de fuego",
+      "Visión ártica",
+      "Audición sobrehumana"
+    ],
+    "description": "Una versión imperfecta y distorsionada de Superman, creada por experimentos científicos fallidos. Aunque carece de la inteligencia y el autocontrol del Hombre de Acero, posee poderes similares que lo convierten en un oponente formidable.",
+    "team": "Solo",
+    "image": "",
+    "status": "Active",
+    "category": "Villain",
+    "universe": "DC"
+  },
+  {
+    "name": "Lex Luthor",
+    "slug": "lex-luthor",
+    "alias": "Lex Luthor",
+    "powers": [
+      "Intelecto de genio",
+      "Maestría en tecnología",
+      "Estrategia militar",
+      "Manipulación política",
+      "Recursos ilimitados",
+      "Tecnología avanzada",
+      "Habilidades de combate"
+    ],
+    "description": "Un genio ególatra y empresario multimillonario que libra una batalla personal, pública y política interminable contra Superman. Es el hombre más inteligente de la Tierra, pero solo usa su mente brillante para beneficio propio y para vengarse de aquellos que considera que le han hecho daño.",
+    "team": "Solo",
+    "image": "",
+    "status": "Active",
+    "category": "Villain",
+    "universe": "DC"
+  },
+  {
+    "name": "Doomsday",
+    "slug": "doomsday",
+    "alias": "Doomsday",
+    "powers": [
+      "Super fuerza",
+      "Invencibilidad",
+      "Regeneración",
+      "Adaptación evolutiva",
+      "Resistencia a la muerte",
+      "Instinto de destrucción",
+      "Inmunidad a la mayoría de ataques"
+    ],
+    "description": "Un arma creada en las condiciones más extremas imaginables, Doomsday es una fuerza última e imparable de destrucción y devastación. Hace mucho tiempo, científicos del planeta Krypton diseñaron una criatura para ser el arma definitiva. Esta criatura, el Último, no tenía otro propósito que la destrucción, y se abrió paso a través de otros planetas antes de ser finalmente derrotado. Enterrado en el primitivo planeta Tierra, se despertó después de muchos siglos y desató la muerte, ganándose el nombre de Doomsday. El monstruo fue finalmente detenido por Superman, quien aparentemente perdió su propia vida en el proceso. Impulsado por un instinto de cazar a los habitantes de su propio mundo natal, Doomsday ha resurgido una y otra vez para amenazar a Superman y su planeta adoptivo, sin importar lo que se interponga en su camino.",
+    "team": "Solo",
+    "image": "",
+    "status": "Active",
+    "category": "Villain",
+    "universe": "DC"
+  },
+  {
+    "name": "Dru-Zod",
+    "slug": "general-zod",
+    "alias": "General Zod",
+    "powers": [
+      "Super fuerza",
+      "Vuelo",
+      "Super velocidad",
+      "Invulnerabilidad",
+      "Visión de calor",
+      "Visión de rayos X",
+      "Intelecto estratégico",
+      "Habilidades de combate avanzadas"
+    ],
+    "description": "Una vez el mayor líder militar de Krypton, el General Dru-Zod fue desterrado a la Zona Fantasma por crímenes cometidos contra el pueblo de Krypton. Atrapado durante años, mucho después de la destrucción de su planeta natal, Zod emergió de su prisión interdimensional buscando venganza contra el hombre al que culpaba de su cautiverio, persiguiendo al hijo superviviente de su carcelero: Kal-El de Krypton, el héroe conocido como Superman.",
+    "team": "Solo",
+    "image": "",
+    "status": "Active",
+    "category": "Villain",
+    "universe": "DC"
+  },
+  {
+    "name": "Joker",
+    "slug": "clown-prince-of-crime",
+    "alias": "Clown Prince of Crime",
+    "powers": [
+      "Imprevisibilidad total",
+      "Agente del caos",
+      "Armas personalizadas",
+      "Toxina de la risa",
+      "Intelecto criminal",
+      "Manipulación psicológica",
+      "Habilidades de combate"
+    ],
+    "description": "Un artista homicida y agente del caos, el Príncipe Payaso del Crimen es la encarnación de todo contra lo que Batman lucha... y todo lo que teme. Ningún nombre infunde tanto terror en los corazones de los ciudadanos de Gotham como el Joker. En una ciudad invadida por criminales más grandes que la vida, el villano siempre riendo se mantiene solo. Un psicópata completo sin brújula moral, el Joker, cuyo nombre real e identidad permanecen completamente desconocidos, se caracteriza por su piel blanca como tiza, cabello verde y una sonrisa permanente estirada en su rostro. Pero no hay nada gracioso en este payaso en particular, que solo encuentra humor en el sufrimiento de otros.",
+    "team": "Solo",
+    "image": "",
+    "status": "Active",
+    "category": "Villain",
+    "universe": "DC"
+  },
+  {
+    "name": "Harley Quinn",
+    "slug": "clown-princess-of-crime",
+    "alias": "Clown Princess of Crime",
+    "powers": [
+      "Agilidad acrobática",
+      "Habilidades de combate",
+      "Armas personalizadas",
+      "Imprevisibilidad",
+      "Carisma manipulador",
+      "Resistencia al dolor",
+      "Intelecto criminal"
+    ],
+    "description": "La antigua Dra. Harleen Quinzel, una psicóloga prometedora que se obsesionó con el Joker durante su internado en Arkham Asylum. Su amor por el Príncipe Payaso del Crimen la llevó a adoptar la identidad de Harley Quinn, convirtiéndose en su compañera y luego en una villana independiente. Conocida por su versatilidad, carisma y perspectiva alegre pero perturbada de la vida, Harley se ha convertido en una de las villanas más populares del Universo DC.",
+    "team": "Suicide Squad",
+    "image": "",
+    "status": "Active",
+    "category": "Villain",
+    "universe": "DC"
+  }
+]

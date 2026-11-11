@@ -8,6 +8,7 @@
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "dev:api": "tsx watch src/index.ts --api",
+    "seed": "tsx scripts/seed.ts",
     "build": "tsc",
     "start": "node dist/index.js"
   },

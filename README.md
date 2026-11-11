@@ -31,6 +31,7 @@ API REST para administrar un catálogo de superhéroes: creación, consulta pagi
 | `npm run dev:api` | Igual que `dev`, pero también acepta requests sin `Origin` (curl, Postman) |
 | `npm run build` | Compila a JavaScript en `dist/` |
 | `npm start` | Ejecuta la versión compilada desde `dist/` |
+| `npm run seed` | **Pisa** la colección `heroes`: borra los datos actuales y carga los 25 héroes de `scripts/data/heroes-full-alias.json` (restaurar catálogo) |
 
 ## Variables de entorno
 
