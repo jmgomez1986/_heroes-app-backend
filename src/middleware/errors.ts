@@ -10,6 +10,15 @@ export const errorHandler = (
   resp: Response,
   next: NextFunction,
 ) => {
+  // Body-parser (via express.raw en el upload de imagen, pero tambien express
+  // .json en el resto de las rutas): el body supera el limite declarado.
+  // Se mapea a 413 con mensaje generico (aplica a cualquier ruta) en lugar de
+  // caer como error generico de servidor. `type` no existe en Error estandar,
+  // se lee con un cast local.
+  if ((err as { type?: string })?.type === 'entity.too.large') {
+    return resp.status(413).json({ msg: 'Request body too large.' });
+  }
+
   // Violacion de indice unico (E11000): los checks de existencia a nivel app
   // pueden perder una carrera con requests concurrentes, asi que el indice
   // unico de la DB es la ultima linea de defensa de la unicidad slug/alias.

@@ -1,6 +1,13 @@
 import { Router } from 'express';
-import { body, query } from 'express-validator';
-import { addHero, deleteHero, getHeroes, updateHero } from '../handlers';
+import { body, query, param } from 'express-validator';
+import { raw } from 'express';
+import {
+  addHero,
+  deleteHero,
+  getHeroes,
+  updateHero,
+  addHeroImage,
+} from '../handlers';
 import { handleInputErrors } from '../middleware/validation';
 
 export const router = Router();
@@ -55,3 +62,15 @@ router.patch(
   updateHero,
 );
 router.delete('/heroes/:slug', deleteHero);
+// Upload de imagen del hero: binario crudo como body (no multipart).
+// El límite lo corta el parser mismo: si pasa 1mb, lanza error demasiado grande.
+router.post(
+  '/heroes/:slug/image',
+  param('slug').notEmpty().withMessage('Slug is required'),
+  raw({
+    type: ['image/png', 'image/jpeg'], // solo acepta ese Content-Type, el resto da 415
+    limit: '1mb', // misma regla que muestra el front
+  }),
+  handleInputErrors,
+  addHeroImage,
+);

@@ -11,6 +11,7 @@ API REST para administrar un catálogo de superhéroes: creación, consulta pagi
 | MongoDB + mongoose 9 | Persistencia (cluster en MongoDB Atlas) |
 | express-validator | Validación de input en las rutas |
 | slug | Generación del slug a partir del alias |
+| Cloudinary | Hosting de las imágenes de los héroes (SDK oficial) |
 | cors | Whitelist de orígenes para el frontend |
 
 ## Puesta en marcha
@@ -41,6 +42,9 @@ Definidas en `.env` (no se versiona; usar `.env.template` como guía):
 | `MONGODB_URI` | **Sí** | Connection string de MongoDB. Sin esta variable el proceso corta con error claro |
 | `MONGODB_USERNAME` / `MONGODB_PASSWORD` | No | Solo como referencia del user de Atlas; la autenticación viaja dentro del `MONGODB_URI` |
 | `FRONTEND_URL` | Sí | Origen del frontend autorizado por CORS (ej: `http://localhost:5173`) |
+| `CLOUDINARY_NAME` | **Sí** (para upload de imágenes) | Cloud name de la cuenta de Cloudinary |
+| `CLOUDINARY_API_KEY` | **Sí** (para upload de imágenes) | API key de Cloudinary |
+| `CLOUDINARY_API_SECRET` | **Sí** (para upload de imágenes) | API secret de Cloudinary (secreto: nunca exponer del lado del front) |
 
 ## Endpoints
 
@@ -97,6 +101,25 @@ Reglas especiales:
 - `200` — borrado. Body: `{ "msg": "Hero deleted correctly." }`
 - `404` — no existe héroe con ese slug
 
+### `POST /heroes/:slug/image` — Subir imagen del héroe
+
+Se consume **después de crear (o editar) el héroe**: el front llama primero al `POST`/`PATCH` de datos y, si salió bien, sube la imagen con el slug del héroe.
+
+El body **no es JSON ni multipart**: es el archivo binario crudo como body entero, con `Content-Type: image/png` o `image/jpeg`. Tamaño máximo: `1MB`.
+
+```js
+// Angular / Front
+this.http.post(`${apiUrl}/heroes/${slug}/image`, file, {
+  headers: { 'Content-Type': file.type },
+});
+```
+
+- `200` — imagen subida. Body: `{ "msg": "Image uploaded correctly.", "response": { ...heroe actualizado, con image = secure_url de Cloudinary } }`
+- `400` — body vacío o no llega como binario
+- `404` — no existe héroe con ese slug
+- `413` — el body supera el límite de tamaño (`1MB` en la imagen, default de `100KB` en los endpoints JSON)
+- `415` — `Content-Type` distinto de PNG/JPEG
+
 ## Decisiones de diseño
 
 | Decisión | Motivo |
@@ -109,12 +132,17 @@ Reglas especiales:
 | **Check + índice único en dos capas** | El check a nivel app da mensajes amigables (`409` con detalle); el índice garantiza la invariante siempre |
 | **Comentarios de código en español, mensajes de API en inglés** | Convención del proyecto: el código se lee en español, la API expone mensajes en inglés |
 | **CORS con whitelist y flag `--api`** | En desarrollo solo el origen del frontend consume la API; `dev:api` habilita clientes sin `Origin` para pruebas |
+| **Imagen como endpoint separado del CRUD** (`POST /heroes/:slug/image`) | Cloudinary es una API externa con su propio dominio de fallas: si la subida falla, el héroe ya existe y el front reintenta solo la imagen. El `POST`/`PATCH` de datos quedan JSON puro, sin multipart |
+| **Imagen como binario crudo (`express.raw`), no multipart** | El body entero es la imagen: no hay que agregar multer/formidable solo para desarmar el sobre multipart. El límite (1MB) lo corta el parser mismo y el handler lo mapea a `413` |
+| **`public_id` determinístico en Cloudinary (`heroes-app/<slug>`)** | Re-subir la imagen del mismo slug sobreescribe la anterior sin dejar basura en el bucket, y un futuro delete de héroe sabe la ruta sin guardar campos extra |
+| **Body demasiado grande mapeado a `413` en el error handler global** | `express.raw` (imágenes: 1MB) y `express.json` (default 100KB) cortan fuera del handler; sin el mapeo, Express 5 lo delegaba al error handler y quedaba como `500` engañoso |
 
 ## Estructura del proyecto
 
 ```text
 src/
 ├── config/
+│   ├── cloudinary.ts   # Config del SDK de Cloudinary (credenciales del .env)
 │   ├── cors.ts        # Whitelist de orígenes (FRONTEND_URL, flag --api)
 │   └── db.ts          # Conexión a MongoDB via mongoose
 ├── constants/
@@ -122,9 +150,9 @@ src/
 ├── dtos/
 │   └── hero.dto.ts    # Interfaces IHero e IHeroPageResponse
 ├── handlers/
-│   └── index.ts       # Lógica de los endpoints (addHero, getHeroes, updateHero, deleteHero)
+│   └── index.ts       # Lógica de los endpoints (addHero, getHeroes, updateHero, deleteHero, addHeroImage)
 ├── middleware/
-│   ├── errors.ts      # Error handler global (E11000 -> 409, resto -> 500)
+│   ├── errors.ts      # Error handler global (E11000 -> 409, body grande -> 413, resto -> 500)
 │   └── validation.ts  # Respuesta 400 con los errores de express-validator
 ├── models/
 │   └── Hero.ts        # Schema de mongoose (slug con índice único)

@@ -1,6 +1,8 @@
 import type { Request, Response } from 'express';
 import { Hero } from '../models/Hero';
 import { IHeroPageResponse } from '../dtos/hero.dto';
+import cloudinary from '../config/cloudinary';
+import type { UploadApiResponse } from 'cloudinary';
 import {
   DEFAULT_ELEMENTS_PER_PAGE,
   DEFAULT_PAGE,
@@ -124,4 +126,90 @@ export const deleteHero = async (req: Request, resp: Response) => {
   }
 
   resp.json({ msg: 'Hero deleted correctly.' });
+};
+
+// Content-Types aceptados y su extension para el mensaje de error
+export const ALLOWED_IMAGE_TYPES: Record<string, string> = {
+  'image/png': 'PNG',
+  'image/jpeg': 'JPG',
+};
+
+// Promesifica el upload_stream de Cloudinary: el buffer se escribe en el
+// stream y la promesa se resuelve con la respuesta (o rechaza con el error).
+// Esto evita el callback anidado y hace que el handler sea async/await
+// lineal con un unico punto de manejo de errores.
+const uploadToCloudinary = (buffer: Buffer, publicId: string) =>
+  new Promise<UploadApiResponse>((resolve, reject) => {
+    const stream = cloudinary.uploader.upload_stream(
+      {
+        folder: 'heroes-app',
+        // public_id deterministico: re-subir la imagen del mismo slug
+        // SOBREESCRIBE la anterior (sin huérfanos al reemplazar), y un
+        // futuro delete sabe la ruta sin guardar nada extra en el schema.
+        public_id: publicId,
+        resource_type: 'image',
+      },
+      (error, result) => {
+        if (error || !result) {
+          return reject(error ?? new Error('Cloudinary upload failed'));
+        }
+        resolve(result);
+      },
+    );
+    stream.end(buffer);
+  });
+
+export const addHeroImage = async (req: Request, resp: Response) => {
+  // En los tipos de Express 5 un param puede venir como string[], se
+  // normaliza al primer valor
+  const rawSlug = req.params.slug;
+  const slugParam = (Array.isArray(rawSlug) ? rawSlug[0] : rawSlug) ?? '';
+
+  // 404: el hero tiene que existir, si no, no hay imagen a la que colgar
+  const hero = await Hero.findOne({ slug: slugParam }).select('-__v');
+  if (!hero) {
+    return resp.status(404).json({ msg: 'Hero not found.' });
+  }
+
+  const rawContentType = req.headers['content-type'];
+  const contentType =
+    (Array.isArray(rawContentType) ? rawContentType[0] : rawContentType) ?? '';
+
+  // 415: el Content-Type no es una imagen aceptada. Con express.raw y un
+  // `type` declarado, requests de otros tipos llegan sin parsear, asi que
+  // se valida explicitamente contra la whitelist
+  if (!(contentType in ALLOWED_IMAGE_TYPES)) {
+    return resp.status(415).json({
+      msg: `Unsupported content type '${contentType}'. Expected PNG or JPEG.`,
+    });
+  }
+
+  // 400: el body debe ser la imagen binaria como Buffer no vacio
+  const buffer = req.body;
+  if (!Buffer.isBuffer(buffer) || buffer.length === 0) {
+    return resp.status(400).json({
+      msg: 'Request body must be the raw image file.',
+    });
+  }
+
+  try {
+    // El formato lo agrega Cloudinary al public_id, por eso no va en el id.
+    // Re-subir el mismo slug reemplaza la imagen anterior sin dejar basura.
+    const result = await uploadToCloudinary(buffer, slugParam);
+
+    hero.set('image', result.secure_url);
+    await hero.save();
+
+    return resp.json({
+      msg: 'Image uploaded correctly.',
+      response: hero,
+    });
+  } catch (error) {
+    // El hero queda intacto: solo fallo la subida a Cloudinary. El front
+    // puede reintentar la subida sin volver a crear el hero.
+    console.error('Cloudinary upload failed:', error);
+    return resp
+      .status(500)
+      .json({ msg: 'Error uploading image to Cloudinary.' });
+  }
 };
