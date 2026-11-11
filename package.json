@@ -10,7 +10,9 @@
     "dev:api": "tsx watch src/index.ts --api",
     "seed": "tsx scripts/seed.ts",
     "build": "tsc",
-    "start": "node dist/index.js"
+    "start": "node dist/index.js",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
     "cloudinary": "^2.11.0",
@@ -26,7 +28,11 @@
     "@types/express": "^5.0.6",
     "@types/node": "^26.6.6",
     "@types/slug": "^5.0.9",
+    "@types/supertest": "^7.2.1",
+    "@vitest/coverage-v8": "^5.1.0",
+    "supertest": "^7.3.2",
     "tsx": "^4.23.15",
-    "typescript": "^7.0.2"
+    "typescript": "^7.0.2",
+    "vitest": "^5.1.0"
   }
 }
