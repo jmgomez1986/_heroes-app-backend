@@ -6,6 +6,9 @@ export interface IHero {
   description: string;
   team: string;
   image: string;
+  // Identidad del asset en Cloudinary (internos del backend, el front
+  // no la consume): ausente hasta la primera subida
+  imagePublicId?: string;
   status: string;
   category: string;
   universe: string;

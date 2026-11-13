@@ -125,6 +125,23 @@ export const deleteHero = async (req: Request, resp: Response) => {
     return resp.status(404).json({ msg: 'Hero not found' });
   }
 
+  // Best-effort: si el heroe tenia imagen, su asset en Cloudinary muere
+  // con el (el ULTIMO caso de huerfano que quedaba). Politica de falla
+  // deliberada: el borrado del heroe JAMAS depende de Cloudinary. Si el
+  // destroy falla (servicio caido), el DELETE responde igual y el log
+  // nombra el public_id para limpieza manual -- el doc ya se borro, el
+  // id se pierde con el snapshot
+  if (hero.imagePublicId) {
+    try {
+      await cloudinary.uploader.destroy(hero.imagePublicId);
+    } catch (error) {
+      console.error(
+        `Cloudinary destroy failed for public_id ${hero.imagePublicId}:`,
+        error,
+      );
+    }
+  }
+
   resp.json({ msg: 'Hero deleted correctly.' });
 };
 
@@ -138,14 +155,17 @@ export const ALLOWED_IMAGE_TYPES: Record<string, string> = {
 // stream y la promesa se resuelve con la respuesta (o rechaza con el error).
 // Esto evita el callback anidado y hace que el handler sea async/await
 // lineal con un unico punto de manejo de errores.
+// `publicId` es el identificador COMPLETO del asset (incluye la carpeta:
+// heroes-app/<...>): en la primera subida lo deriva el caller del slug;
+// en las re-subidas viaja el guardado en el schema, que ya la trae. Por
+// eso no se usa el campo `folder` del config: Cloudinary CONCATENA
+// folder + public_id cuando ambos viajan, y prefijaria dos veces
 const uploadToCloudinary = (buffer: Buffer, publicId: string) =>
   new Promise<UploadApiResponse>((resolve, reject) => {
     const stream = cloudinary.uploader.upload_stream(
       {
-        folder: 'heroes-app',
-        // public_id deterministico: re-subir la imagen del mismo slug
-        // SOBREESCRIBE la anterior (sin huérfanos al reemplazar), y un
-        // futuro delete sabe la ruta sin guardar nada extra en el schema.
+        // Identidad estable: re-subir el mismo public_id SOBREESCRIBE
+        // el asset anterior, sin importar cuantas veces cambio el slug
         public_id: publicId,
         resource_type: 'image',
       },
@@ -193,11 +213,39 @@ export const addHeroImage = async (req: Request, resp: Response) => {
   }
 
   try {
-    // El formato lo agrega Cloudinary al public_id, por eso no va en el id.
-    // Re-subir el mismo slug reemplaza la imagen anterior sin dejar basura.
-    const result = await uploadToCloudinary(buffer, slugParam);
+    // Identidad del asset ESTABLE e independiente del slug: si el heroe
+    // ya tiene public_id guardado, las re-subidas lo reutilizan sin
+    // importar cuantas veces haya cambiado el alias (la URL vieja muere,
+    // el asset en Cloudinary no)
+    let publicId = hero.imagePublicId;
+    if (!publicId) {
+      // Primera subida: el candidato derivado del slug se valida contra
+      // los ids guardados de OTROS heroes. El namespace de Cloudinary es
+      // global y un slug liberado por un rename puede ser reclamado por
+      // otro heroe (superman -> Superman Prime, luego flash -> Superman):
+      // sin el check, la subida del nuevo PISARIA el asset del anterior
+      // (dos heroes con la misma imagen, corrupcion silenciosa). Sufijo
+      // numerico acotado: nombres legibles en el dashboard
+      const base = `heroes-app/${slugParam}`;
+      publicId = base;
+      for (let suffix = 2; ; suffix += 1) {
+        // $ne ownerId: excluye al propio heroe, como en updateHero
+        const taken = await Hero.exists({
+          imagePublicId: publicId,
+          _id: { $ne: hero._id },
+        });
+        if (!taken) break;
+        publicId = `${base}-${suffix}`;
+      }
+    }
 
+    const result = await uploadToCloudinary(buffer, publicId);
+
+    // El formato lo agrega Cloudinary al public_id, por eso no va en el id.
+    // Se guarda el public_id devuelto: es la identidad que las re-subidas
+    // van a reutilizar
     hero.set('image', result.secure_url);
+    hero.set('imagePublicId', result.public_id);
     await hero.save();
 
     return resp.json({
