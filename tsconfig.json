@@ -11,7 +11,11 @@
         "strict": true,
         "esModuleInterop": true,
         "sourceMap": true,
-        "skipLibCheck": true
+        "skipLibCheck": true,
+        "types": [
+            "node"
+        ],
+        "resolveJsonModule": true
     },
     "include": [
         "src/**/*.ts"
