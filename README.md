@@ -40,7 +40,7 @@ API REST para administrar un catálogo de superhéroes: creación, consulta pagi
 
 Los tests **no tocan la base de datos real**: los casos que consultan datos corren contra una **MongoDB en memoria** (`mongodb-memory-server`) que se crea y destruye con la suite. `NODE_ENV=test` (lo setea Vitest automáticamente) habilita el CORS para clientes sin `Origin`.
 
-Cobertura actual: validación de GET/POST (`400` con mensajes exactos, incluida la acumulación de errores), paginación completa del GET (defaults, ventanas exactas por `_id`, última página parcial, página inexistente con metadata intacta y colección vacía), ciclo de vida completo del CRUD contra Mongo en memoria — **POST** (201 con slug generado desde el alias, documento completo, persistencia, conflictos 409 por name/alias/slug) y **PATCH** (semántica parcial, `name` inmutable, regeneración de slug por cambio de alias con invalidación de la URL vieja, 409 por colisión con otro héroe, casing que conserva el slug) y **DELETE** (borrado real verificado en la colección y 404).
+Cobertura actual: validación de GET/POST (`400` con mensajes exactos, incluida la acumulación de errores), paginación completa del GET (defaults, ventanas exactas por `_id`, última página parcial, página inexistente con metadata intacta y colección vacía), ciclo de vida completo del CRUD contra Mongo en memoria — **POST** (201 con slug generado desde el alias, documento completo, persistencia, conflictos 409 por name/alias/slug), **PATCH** (semántica parcial, `name` inmutable, regeneración de slug por cambio de alias con invalidación de la URL vieja, 409 por colisión con otro héroe, casing que conserva el slug, 404) y **DELETE** (borrado real verificado en la colección y 404) — y subida de **imagen** (404, 415 por content-type, 400 por body vacío, 413 por el límite de 1MB del parser, 500 si Cloudinary falla dejando el héroe intacto, y 200 con la URL persistida; Cloudinary se **mockea** por ser un servicio externo de pago, todo lo demás corre real).
 
 ## Variables de entorno
 
@@ -177,7 +177,8 @@ src/
 │   ├── heroes.empty-db.test.ts  # Edge: colección vacía (metadata en cero)
 │   ├── heroes.create.test.ts    # POST: feliz (201) + conflictos (409)
 │   ├── heroes.update.test.ts    # PATCH: parcial, name inmutable, slug, colisiones
-│   └── heroes.delete.test.ts    # DELETE: borrado real + 404
+│   ├── heroes.delete.test.ts    # DELETE: borrado real + 404
+│   └── heroes.image.test.ts     # Imagen: 404/415/413/400/500 + 200 con Cloudinary mockeado
 ├── server.ts          # Configuración de Express (CORS, JSON, rutas, error handler)
 └── index.ts           # Punto de entrada: levanta el server en PORT
 ```
