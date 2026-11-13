@@ -50,9 +50,7 @@ describe('PATCH /api/heroes/:slug', () => {
   it('rejects a name change', async () => {
     // Arrange: `name` es identidad, no un campo editable. El handler lo
     // rechaza ANTES de tocar nada: el request no muta la DB
-    const superman = catalogHeroes.find(
-      (h: IHero) => h.slug === 'superman',
-    )!;
+    const superman = catalogHeroes.find((h: IHero) => h.slug === 'superman')!;
     expect(superman).toBeDefined();
 
     // Act
@@ -69,9 +67,7 @@ describe('PATCH /api/heroes/:slug', () => {
     // Arrange: alias nuevo, sin colision ('princesa-amazona' no existe
     // en el seed). El slug esperado va LITERAL: documenta la
     // transformacion sin depender de la misma lib que usa el handler
-    const ww = catalogHeroes.find(
-      (h: IHero) => h.slug === 'mujer-maravilla',
-    )!;
+    const ww = catalogHeroes.find((h: IHero) => h.slug === 'mujer-maravilla')!;
     expect(ww).toBeDefined();
 
     // Act
@@ -93,9 +89,7 @@ describe('PATCH /api/heroes/:slug', () => {
   it('rejects an alias whose slug belongs to another hero', async () => {
     // Arrange: el experimento de Postman convertido en test. El dueño
     // de 'batman' es OTRO heroe, asi que el $ne self no lo salva
-    const superman = catalogHeroes.find(
-      (h: IHero) => h.slug === 'superman',
-    )!;
+    const superman = catalogHeroes.find((h: IHero) => h.slug === 'superman')!;
     expect(superman).toBeDefined();
 
     // Act
@@ -114,9 +108,7 @@ describe('PATCH /api/heroes/:slug', () => {
     // Arrange: 'SUPERMAN' genera el mismo slug que 'Superman'. El $ne
     // self excluye al propio heroe del chequeo de colision: retomar
     // tu propio slug siempre esta permitido
-    const superman = catalogHeroes.find(
-      (h: IHero) => h.slug === 'superman',
-    )!;
+    const superman = catalogHeroes.find((h: IHero) => h.slug === 'superman')!;
     expect(superman).toBeDefined();
 
     // Act
@@ -132,5 +124,16 @@ describe('PATCH /api/heroes/:slug', () => {
 
     const stored = await Hero.findOne({ slug: 'superman' });
     expect(stored?.alias).toBe('SUPERMAN');
+  });
+
+  it('returns 404 when the slug does not exist', async () => {
+    // Act
+    const res = await request(app)
+      .patch('/api/heroes/no-existo')
+      .send({ status: 'Retired' });
+
+    // Assert: msg exacto del handler -- CON punto final (distinto del DELETE)
+    expect(res.status).toBe(404);
+    expect(res.body.msg).toBe('Hero not found.');
   });
 });
