@@ -178,7 +178,8 @@ src/
 │   ├── heroes.create.test.ts    # POST: feliz (201) + conflictos (409)
 │   ├── heroes.update.test.ts    # PATCH: parcial, name inmutable, slug, colisiones
 │   ├── heroes.delete.test.ts    # DELETE: borrado real + 404
-│   └── heroes.image.test.ts     # Imagen: 404/415/413/400/500 + 200 con Cloudinary mockeado
+│   ├── heroes.image.test.ts     # Imagen: 404/415/413/400/500 + 200 con Cloudinary mockeado
+│   └── errors.test.ts           # errorHandler global: E11000 -> 409 y fallback -> 500
 ├── server.ts          # Configuración de Express (CORS, JSON, rutas, error handler)
 └── index.ts           # Punto de entrada: levanta el server en PORT
 ```
