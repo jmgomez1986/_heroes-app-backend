@@ -45,6 +45,15 @@ const heroSchema = new Schema({
     // con la URL de Cloudinary cuando se sube la imagen
     default: '',
   },
+  // Identidad del asset en Cloudinary, INDEPENDIENTE del slug: se fija
+  // en la primera subida (heroes-app/<slug>) y se REUTILIZA en las
+  // re-subidas. Si el slug se regenera por un cambio de alias, el asset
+  // NO se mueve: re-subir sobreescribe el mismo public_id (cero
+  // huerfanos). Interno del backend: el front no lo consume
+  imagePublicId: {
+    type: String,
+    trim: true,
+  },
   status: {
     type: String,
     required: true,

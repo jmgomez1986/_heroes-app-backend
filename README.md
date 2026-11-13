@@ -144,7 +144,9 @@ this.http.post(`${apiUrl}/heroes/${slug}/image`, file, {
 | **CORS con whitelist y flag `--api`** | En desarrollo solo el origen del frontend consume la API; `dev:api` habilita clientes sin `Origin` para pruebas |
 | **Imagen como endpoint separado del CRUD** (`POST /heroes/:slug/image`) | Cloudinary es una API externa con su propio dominio de fallas: si la subida falla, el héroe ya existe y el front reintenta solo la imagen. El `POST`/`PATCH` de datos quedan JSON puro, sin multipart |
 | **Imagen como binario crudo (`express.raw`), no multipart** | El body entero es la imagen: no hay que agregar multer/formidable solo para desarmar el sobre multipart. El límite (1MB) lo corta el parser mismo y el handler lo mapea a `413` |
-| **`public_id` determinístico en Cloudinary (`heroes-app/<slug>`)** | Re-subir la imagen del mismo slug sobreescribe la anterior sin dejar basura en el bucket, y un futuro delete de héroe sabe la ruta sin guardar campos extra |
+| **Identidad del asset estable (`imagePublicId` en el schema)** | El `public_id` de la primera subida (`heroes-app/<slug>`) se **guarda** y las re-subidas lo **reutilizan**: el slug puede regenerarse cuantas veces cambie el alias sin mover el asset en Cloudinary (cero huérfanos, la URL guardada sigue válida) |
+| **Primer `public_id` verificado contra la DB (sufijo `-2`, `-3`...)** | Un slug liberado por un rename puede ser reclamado por otro héroe (`Superman → Superman Prime`, luego `Flash → Superman`): sin el check, la re-subida del nuevo pisaría el asset del anterior (dos héroes con la misma imagen, corrupción silenciosa). El sufijo mantiene nombres legibles en el dashboard |
+| **`folder` fuera de las options de upload** | Cloudinary **concatena** `folder + public_id` cuando ambos viajan: se pasa el id completo (carpeta incluida) para no prefijar dos veces |
 | **Body demasiado grande mapeado a `413` en el error handler global** | `express.raw` (imágenes: 1MB) y `express.json` (default 100KB) cortan fuera del handler; sin el mapeo, Express 5 lo delegaba al error handler y quedaba como `500` engañoso |
 
 ## Estructura del proyecto

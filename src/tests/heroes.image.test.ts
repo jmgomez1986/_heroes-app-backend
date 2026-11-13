@@ -171,17 +171,159 @@ describe('POST /api/heroes/:slug/image', () => {
     expect(res.status).toBe(200);
     expect(res.body.msg).toBe('Image uploaded correctly.');
     expect(res.body.response.image).toBe(MOCK_SECURE_URL);
-    // ...el public_id deterministico ES el diseno: la misma imagen re-subida
-    // para el mismo slug SOBREESCRIBE la anterior (sin huerfanos)
+    // Primera subida: public_id COMPLETO (carpeta incluida) derivado del
+    // slug actual. Sin `folder` en las options: Cloudinary concatenaria
+    // folder + public_id y prefijaria dos veces
     expect(uploadStreamMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        folder: 'heroes-app',
-        public_id: 'iron-man',
+        public_id: 'heroes-app/iron-man',
       }),
       expect.any(Function),
     );
+    // ...la identidad del asset queda guardada: es lo que las re-subidas
+    // reutilizan aunque el slug cambie despues
+    expect(res.body.response.imagePublicId).toBe('heroes-app/iron-man');
     // ...y la persistencia, leyendo por el mismo modelo que el handler
     const stored = await Hero.findOne({ slug: 'iron-man' });
     expect(stored?.image).toBe(MOCK_SECURE_URL);
+    expect(stored?.imagePublicId).toBe('heroes-app/iron-man');
+  });
+
+  it('reuses the stored public_id after the slug regenerates (no orphans)', async () => {
+    // Arrange: la historia completa del diseno en un solo test.
+    // Primera subida de cyborg...
+    const cyborg = catalogHeroes.find((h: IHero) => h.slug === 'cyborg')!;
+    expect(cyborg).toBeDefined();
+    const uploadStreamMock = vi.mocked(cloudinary.uploader.upload_stream);
+    const cyborgUrl = 'https://res.cloudinary.com/heroes-app/cyborg.png';
+    uploadStreamMock.mockImplementationOnce((_options, callback) => {
+      return {
+        end: () => {
+          setImmediate(() =>
+            callback(null, {
+              public_id: 'heroes-app/cyborg',
+              secure_url: cyborgUrl,
+            } as UploadApiResponse),
+          );
+        },
+      } as unknown as Writable;
+    });
+    const first = await request(app)
+      .post('/api/heroes/cyborg/image')
+      .set('Content-Type', 'image/png')
+      .send(pngBytes);
+    expect(first.status).toBe(200);
+
+    // ...luego el alias cambia y el slug se regenera (la URL vieja
+    // muere, pero el asset en Cloudinary sigue en heroes-app/cyborg)
+    const renamed = await request(app)
+      .patch('/api/heroes/cyborg')
+      .send({ alias: 'Cyborg Prime' });
+    expect(renamed.status).toBe(200);
+    expect(renamed.body.response.slug).toBe('cyborg-prime');
+
+    // Act: re-subida con el slug NUEVO
+    uploadStreamMock.mockImplementationOnce((_options, callback) => {
+      return {
+        end: () => {
+          setImmediate(() =>
+            callback(null, {
+              public_id: 'heroes-app/cyborg',
+              secure_url: cyborgUrl,
+            } as UploadApiResponse),
+          );
+        },
+      } as unknown as Writable;
+    });
+    const reupload = await request(app)
+      .post('/api/heroes/cyborg-prime/image')
+      .set('Content-Type', 'image/png')
+      .send(pngBytes);
+
+    // Assert: el public_id usado es el GUARDADO (heroes-app/cyborg), no
+    // el slug nuevo (heroes-app/cyborg-prime que habria dejado un
+    // huerfano). La identidad del asset sobrevive al rename
+    expect(reupload.status).toBe(200);
+    expect(uploadStreamMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({ public_id: 'heroes-app/cyborg' }),
+      expect.any(Function),
+    );
+    const stored = await Hero.findOne({ slug: 'cyborg-prime' });
+    expect(stored?.imagePublicId).toBe('heroes-app/cyborg');
+  });
+
+  it('never claims a public_id owned by another hero (freed slug)', async () => {
+    // Arrange: el escenario del bug, la secuencia exacta del usuario.
+    // 1) superman sube imagen: su asset nace heroes-app/superman
+    const uploadStreamMock = vi.mocked(cloudinary.uploader.upload_stream);
+    const supermanUrl = 'https://res.cloudinary.com/heroes-app/superman.png';
+    uploadStreamMock.mockImplementationOnce((_options, callback) => {
+      return {
+        end: () => {
+          setImmediate(() =>
+            callback(null, {
+              public_id: 'heroes-app/superman',
+              secure_url: supermanUrl,
+            } as UploadApiResponse),
+          );
+        },
+      } as unknown as Writable;
+    });
+    const first = await request(app)
+      .post('/api/heroes/superman/image')
+      .set('Content-Type', 'image/png')
+      .send(pngBytes);
+    expect(first.status).toBe(200);
+
+    // 2) renombra a Superman Prime: el slug 'superman' queda LIBRE y su
+    // imagePublicId guardado NO cambia (heroes-app/superman)
+    const renamed = await request(app)
+      .patch('/api/heroes/superman')
+      .send({ alias: 'Superman Prime' });
+    expect(renamed.status).toBe(200);
+    expect(renamed.body.response.slug).toBe('superman-prime');
+
+    // 3) flash reclama el slug liberado
+    const claimer = await request(app)
+      .patch('/api/heroes/flash')
+      .send({ alias: 'Superman' });
+    expect(claimer.status).toBe(200);
+    expect(claimer.body.response.slug).toBe('superman');
+
+    // Act: flash sube su imagen. El candidato derivado
+    // (heroes-app/superman) esta TOMADO por el renombrado -> sufijo -2
+    const flashUrl = 'https://res.cloudinary.com/heroes-app/superman-2.png';
+    uploadStreamMock.mockImplementationOnce((_options, callback) => {
+      return {
+        end: () => {
+          setImmediate(() =>
+            callback(null, {
+              public_id: 'heroes-app/superman-2',
+              secure_url: flashUrl,
+            } as UploadApiResponse),
+          );
+        },
+      } as unknown as Writable;
+    });
+    const res = await request(app)
+      .post('/api/heroes/superman/image')
+      .set('Content-Type', 'image/png')
+      .send(pngBytes);
+
+    // Assert: cada heroe con su asset propio. Sin el check habria quedado
+    // la MISMA imagen "para dos heroes" (la subida del nuevo pisando el
+    // asset del anterior, corrupcion silenciosa)
+    expect(res.status).toBe(200);
+    expect(uploadStreamMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({ public_id: 'heroes-app/superman-2' }),
+      expect.any(Function),
+    );
+    const claimerStored = await Hero.findOne({ slug: 'superman' });
+    expect(claimerStored?.image).toBe(flashUrl);
+    expect(claimerStored?.imagePublicId).toBe('heroes-app/superman-2');
+    // El renombrado conserva su asset y su URL intactos
+    const renamedStored = await Hero.findOne({ slug: 'superman-prime' });
+    expect(renamedStored?.image).toBe(supermanUrl);
+    expect(renamedStored?.imagePublicId).toBe('heroes-app/superman');
   });
 });
