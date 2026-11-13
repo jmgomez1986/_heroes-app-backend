@@ -93,6 +93,8 @@ describe('corsConf origin', () => {
     const [err] = callback.mock.calls[0];
     expect(err).toBeInstanceOf(Error);
     expect((err as Error).message).toBe('Error de CORS');
+    // Contrato con el errorHandler: el status viaja adjunto
+    expect((err as Error & { status?: number }).status).toBe(403);
   });
 
   it('rejects no-origin clients when allowNoOrigin is off', async () => {

@@ -19,6 +19,11 @@ export const errorHandler = (
     return resp.status(413).json({ msg: 'Request body too large.' });
   }
 
+  // CORS-rejected: decision del cliente, 403 propio y sin console.error
+  if ((err as { status?: number })?.status === 403) {
+    return resp.status(403).json({ msg: 'Origin not allowed by CORS.' });
+  }
+
   // Violacion de indice unico (E11000): los checks de existencia a nivel app
   // pueden perder una carrera con requests concurrentes, asi que el indice
   // unico de la DB es la ultima linea de defensa de la unicidad slug/alias.

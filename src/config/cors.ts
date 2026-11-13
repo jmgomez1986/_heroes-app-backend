@@ -25,7 +25,10 @@ export const corsConf: CorsOptions = {
     if (whitelist.includes(origin)) {
       callback(null, true);
     } else {
-      callback(new Error('Error de CORS'));
+      // Status adjunto: el errorHandler global lo mapea a 403
+      const err: Error & { status?: number } = new Error('Error de CORS');
+      err.status = 403;
+      callback(err);
     }
   },
 };

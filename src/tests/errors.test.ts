@@ -56,6 +56,21 @@ describe('errorHandler (middleware global)', () => {
     expect(next).not.toHaveBeenCalled();
   });
 
+  it('maps a CORS-rejected error to a dedicated 403', () => {
+    // El error viaja con el status adjunto (convencion de Express)
+    const err = Object.assign(new Error('Error de CORS'), { status: 403 });
+    const resp = makeResp();
+
+    errorHandler(err, {} as Request, resp, next);
+
+    expect(resp.status).toHaveBeenCalledWith(403);
+    expect(resp.json).toHaveBeenCalledWith({
+      msg: 'Origin not allowed by CORS.',
+    });
+    expect(consoleErrorSpy).not.toHaveBeenCalled();
+    expect(next).not.toHaveBeenCalled();
+  });
+
   it('maps any unexpected error to a 500', () => {
     // Arrange: lo impredecible (DB caida, bug, cast). La promesa del
     // middleware: NINGUN error escapa como HTML de Express, todo error

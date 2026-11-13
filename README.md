@@ -130,6 +130,10 @@ this.http.post(`${apiUrl}/heroes/${slug}/image`, file, {
 - `413` — el body supera el límite de tamaño (`1MB` en la imagen, default de `100KB` en los endpoints JSON)
 - `415` — `Content-Type` distinto de PNG/JPEG
 
+### Cualquier endpoint
+
+- `403` — `Origin` de la request fuera de la whitelist de CORS: `Origin not allowed by CORS.`
+
 ## Decisiones de diseño
 
 | Decisión | Motivo |
@@ -142,6 +146,7 @@ this.http.post(`${apiUrl}/heroes/${slug}/image`, file, {
 | **Check + índice único en dos capas** | El check a nivel app da mensajes amigables (`409` con detalle); el índice garantiza la invariante siempre |
 | **Comentarios de código en español, mensajes de API en inglés** | Convención del proyecto: el código se lee en español, la API expone mensajes en inglés |
 | **CORS con whitelist y flag `--api`** | En desarrollo solo el origen del frontend consume la API; `dev:api` habilita clientes sin `Origin` para pruebas |
+| **CORS-rejected mapeado a `403` dedicado** | El rechazo es una decisión del **cliente** (origin fuera de la whitelist), no un fallo del servidor: el error viaja con el status adjunto (convención de Express) y el errorHandler lo responde `403 'Origin not allowed by CORS.'` sin `console.error` — antes caía como `500 'Internal server error.'`, que es mentira: el servidor está sano |
 | **Imagen como endpoint separado del CRUD** (`POST /heroes/:slug/image`) | Cloudinary es una API externa con su propio dominio de fallas: si la subida falla, el héroe ya existe y el front reintenta solo la imagen. El `POST`/`PATCH` de datos quedan JSON puro, sin multipart |
 | **Imagen como binario crudo (`express.raw`), no multipart** | El body entero es la imagen: no hay que agregar multer/formidable solo para desarmar el sobre multipart. El límite (1MB) lo corta el parser mismo y el handler lo mapea a `413` |
 | **Identidad del asset estable (`imagePublicId` en el schema)** | El `public_id` de la primera subida (`heroes-app/<slug>`) se **guarda** y las re-subidas lo **reutilizan**: el slug puede regenerarse cuantas veces cambie el alias sin mover el asset en Cloudinary (cero huérfanos, la URL guardada sigue válida) |
@@ -168,7 +173,7 @@ src/
 ├── handlers/
 │   └── index.ts       # Lógica de los endpoints (addHero, getHeroes, updateHero, deleteHero, addHeroImage)
 ├── middleware/
-│   ├── errors.ts      # Error handler global (E11000 -> 409, body grande -> 413, resto -> 500)
+│   ├── errors.ts      # Error handler global (E11000 -> 409, body grande -> 413, CORS -> 403, resto -> 500)
 │   └── validation.ts  # Respuesta 400 con los errores de express-validator
 ├── models/
 │   └── Hero.ts        # Schema de mongoose (slug con índice único)
@@ -182,7 +187,7 @@ src/
 │   ├── heroes.update.test.ts    # PATCH: parcial, name inmutable, slug, colisiones
 │   ├── heroes.delete.test.ts    # DELETE: borrado real + 404
 │   ├── heroes.image.test.ts     # Imagen: 404/415/413/400/500 + 200 con Cloudinary mockeado
-│   ├── errors.test.ts           # errorHandler global: E11000 -> 409 y fallback -> 500
+│   ├── errors.test.ts           # errorHandler global: E11000 -> 409, CORS -> 403 y fallback -> 500
 │   └── cors.test.ts             # CORS: whitelist por origin y fail-fast de FRONTEND_URL
 ├── server.ts          # Configuración de Express (CORS, JSON, rutas, error handler)
 └── index.ts           # Punto de entrada: levanta el server en PORT
