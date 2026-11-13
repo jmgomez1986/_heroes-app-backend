@@ -40,6 +40,10 @@ const heroSchema = new Schema({
   image: {
     type: String,
     trim: true,
+    // Default '': la key SIEMPRE existe, el shape es uniforme para el
+    // front (nunca hero.image ?? ''). El POST /:slug/image la reemplaza
+    // con la URL de Cloudinary cuando se sube la imagen
+    default: '',
   },
   status: {
     type: String,

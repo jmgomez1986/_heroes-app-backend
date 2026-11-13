@@ -79,9 +79,10 @@ describe('POST /api/heroes', () => {
       universe: 'DC',
       powers: [],
     });
-    // La imagen NO existe como campo hasta que se sube: el schema no la
-    // crea con default, el POST /:slug/image es quien la agrega
-    expect(res.body.response).not.toHaveProperty('image');
+    // El schema ahora da default '' a image: la key SIEMPRE existe
+    // (shape uniforme para el front); POST /:slug/image la reemplaza
+    // con la URL de Cloudinary cuando se sube
+    expect(res.body.response.image).toBe('');
   });
 
   it('persists the created hero in the database', async () => {
