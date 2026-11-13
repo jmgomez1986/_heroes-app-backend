@@ -125,6 +125,23 @@ export const deleteHero = async (req: Request, resp: Response) => {
     return resp.status(404).json({ msg: 'Hero not found' });
   }
 
+  // Best-effort: si el heroe tenia imagen, su asset en Cloudinary muere
+  // con el (el ULTIMO caso de huerfano que quedaba). Politica de falla
+  // deliberada: el borrado del heroe JAMAS depende de Cloudinary. Si el
+  // destroy falla (servicio caido), el DELETE responde igual y el log
+  // nombra el public_id para limpieza manual -- el doc ya se borro, el
+  // id se pierde con el snapshot
+  if (hero.imagePublicId) {
+    try {
+      await cloudinary.uploader.destroy(hero.imagePublicId);
+    } catch (error) {
+      console.error(
+        `Cloudinary destroy failed for public_id ${hero.imagePublicId}:`,
+        error,
+      );
+    }
+  }
+
   resp.json({ msg: 'Hero deleted correctly.' });
 };
 

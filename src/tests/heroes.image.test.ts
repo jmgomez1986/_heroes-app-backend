@@ -19,6 +19,7 @@ vi.mock('../config/cloudinary', () => ({
   default: {
     uploader: {
       upload_stream: vi.fn(),
+      destroy: vi.fn(),
     },
   },
 }));
@@ -325,5 +326,99 @@ describe('POST /api/heroes/:slug/image', () => {
     const renamedStored = await Hero.findOne({ slug: 'superman-prime' });
     expect(renamedStored?.image).toBe(supermanUrl);
     expect(renamedStored?.imagePublicId).toBe('heroes-app/superman');
+  });
+
+  it('destroys the Cloudinary asset when the hero is deleted', async () => {
+    // Arrange: aquaman con imagen subida (su public_id guardado)
+    const uploadStreamMock = vi.mocked(cloudinary.uploader.upload_stream);
+    const aquamanUrl = 'https://res.cloudinary.com/heroes-app/aquaman.png';
+    uploadStreamMock.mockImplementationOnce((_options, callback) => {
+      return {
+        end: () => {
+          setImmediate(() =>
+            callback(null, {
+              public_id: 'heroes-app/aquaman',
+              secure_url: aquamanUrl,
+            } as UploadApiResponse),
+          );
+        },
+      } as unknown as Writable;
+    });
+    const upload = await request(app)
+      .post('/api/heroes/aquaman/image')
+      .set('Content-Type', 'image/png')
+      .send(pngBytes);
+    expect(upload.status).toBe(200);
+
+    const destroyMock = vi.mocked(cloudinary.uploader.destroy);
+    destroyMock.mockClear();
+    destroyMock.mockResolvedValueOnce({ result: 'ok' } as never); // el handler no lee el shape
+
+    // Act
+    const res = await request(app).delete('/api/heroes/aquaman');
+
+    // Assert: el asset muere con el heroe (el ULTIMO caso de huerfano)
+    expect(res.status).toBe(200);
+    expect(res.body.msg).toBe('Hero deleted correctly.');
+    expect(destroyMock).toHaveBeenCalledWith('heroes-app/aquaman');
+    expect(await Hero.exists({ slug: 'aquaman' })).toBeNull();
+  });
+
+  it('skips the destroy when the hero has no image', async () => {
+    // Arrange: shazam nunca subio imagen: no hay asset a destruir
+    const destroyMock = vi.mocked(cloudinary.uploader.destroy);
+    destroyMock.mockClear();
+
+    // Act
+    const res = await request(app).delete('/api/heroes/shazam');
+
+    // Assert: el DELETE no toca Cloudinary
+    expect(res.status).toBe(200);
+    expect(destroyMock).not.toHaveBeenCalled();
+  });
+
+  it('does not fail the DELETE when the destroy fails', async () => {
+    // Arrange: la politica deliberada: el borrado del heroe JAMAS
+    // depende de Cloudinary. El log capturado nombra el public_id para
+    // limpieza manual (el doc ya se borro: el id vive solo en el log)
+    const consoleSpy = vi
+      .spyOn(console, 'error')
+      .mockImplementation(() => {});
+    const uploadStreamMock = vi.mocked(cloudinary.uploader.upload_stream);
+    const ravenUrl = 'https://res.cloudinary.com/heroes-app/raven.png';
+    uploadStreamMock.mockImplementationOnce((_options, callback) => {
+      return {
+        end: () => {
+          setImmediate(() =>
+            callback(null, {
+              public_id: 'heroes-app/raven',
+              secure_url: ravenUrl,
+            } as UploadApiResponse),
+          );
+        },
+      } as unknown as Writable;
+    });
+    const upload = await request(app)
+      .post('/api/heroes/raven/image')
+      .set('Content-Type', 'image/png')
+      .send(pngBytes);
+    expect(upload.status).toBe(200);
+
+    const destroyMock = vi.mocked(cloudinary.uploader.destroy);
+    destroyMock.mockClear();
+    destroyMock.mockRejectedValueOnce(new Error('Cloudinary down'));
+
+    // Act
+    const res = await request(app).delete('/api/heroes/raven');
+
+    // Assert: 200 igual, y el log nombra el public_id huerfano
+    expect(res.status).toBe(200);
+    expect(res.body.msg).toBe('Hero deleted correctly.');
+    expect(destroyMock).toHaveBeenCalledWith('heroes-app/raven');
+    expect(consoleSpy).toHaveBeenCalledWith(
+      'Cloudinary destroy failed for public_id heroes-app/raven:',
+      expect.anything(),
+    );
+    consoleSpy.mockRestore();
   });
 });
