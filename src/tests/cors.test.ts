@@ -14,7 +14,7 @@ const loadCorsConf = async (
   for (const [key, value] of Object.entries(env)) {
     vi.stubEnv(key, value);
   }
-  const { corsConf } = await import('../config/cors');
+  const { corsConf } = await import('../config/cors.js');
   return corsConf;
 };
 

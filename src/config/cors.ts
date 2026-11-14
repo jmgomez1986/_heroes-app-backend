@@ -18,7 +18,10 @@ const allowNoOrigin =
 
 export const corsConf: CorsOptions = {
   origin: function (origin, callback) {
-    const whitelist = [frontendUrl];
+    // `undefined` en la whitelist representa a los clientes SIN Origin
+    // (curl, Postman): por eso el array no es string[], sino la union con
+    // undefined, que tambien es el tipo del param `origin` que cors pasa
+    const whitelist: (string | undefined)[] = [frontendUrl];
     if (allowNoOrigin) {
       whitelist.push(undefined);
     }
