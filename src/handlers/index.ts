@@ -64,6 +64,24 @@ export const getHeroes = async (req: Request, resp: Response) => {
   } satisfies IHeroPageResponse);
 };
 
+export const getHeroBySlug = async (req: Request, resp: Response) => {
+  // En los tipos de Express 5 un param puede venir como string[], se
+  // normaliza al primer valor (mismo tratamiento que addHeroImage)
+  const rawSlug = req.params.slug;
+  const slugParam = (Array.isArray(rawSlug) ? rawSlug[0] : rawSlug) ?? '';
+
+  // 404: el formato del slug ya fue validado por la ruta; aca solo queda
+  // decidir si el slug bien formado existe o no en la DB
+  const hero = await Hero.findOne({ slug: slugParam }).select('-__v');
+  if (!hero) {
+    return resp.status(404).json({ msg: 'Hero not found.' });
+  }
+
+  // Se devuelve el documento directo (sin __v, igual que el listado):
+  // es una lectura de un recurso unico, no una mutacion con msg
+  resp.json(hero);
+};
+
 export const updateHero = async (req: Request, resp: Response) => {
   // `slugParam` para no pisar la libreria `slug` importada.
   const { slug: slugParam } = req.params;

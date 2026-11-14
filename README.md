@@ -40,7 +40,7 @@ API REST para administrar un catálogo de superhéroes: creación, consulta pagi
 
 Los tests **no tocan la base de datos real**: los casos que consultan datos corren contra una **MongoDB en memoria** (`mongodb-memory-server`) que se crea y destruye con la suite. `NODE_ENV=test` (lo setea Vitest automáticamente) habilita el CORS para clientes sin `Origin`.
 
-Cobertura actual: validación de GET/POST (`400` con mensajes exactos, incluida la acumulación de errores), paginación completa del GET (defaults, ventanas exactas por `_id`, última página parcial, página inexistente con metadata intacta y colección vacía), ciclo de vida completo del CRUD contra Mongo en memoria — **POST** (201 con slug generado desde el alias, documento completo, persistencia, conflictos 409 por name/alias/slug), **PATCH** (semántica parcial, `name` inmutable, regeneración de slug por cambio de alias con invalidación de la URL vieja, 409 por colisión con otro héroe, casing que conserva el slug, 404) y **DELETE** (borrado real verificado en la colección y 404) — y subida de **imagen** (404, 415 por content-type, 400 por body vacío, 413 por el límite de 1MB del parser, 500 si Cloudinary falla dejando el héroe intacto, y 200 con la URL persistida; Cloudinary se **mockea** por ser un servicio externo de pago, todo lo demás corre real).
+Cobertura actual: validación de GET/POST (`400` con mensajes exactos, incluida la acumulación de errores), paginación completa del GET (defaults, ventanas exactas por `_id`, última página parcial, página inexistente con metadata intacta y colección vacía), **GET por slug** (200 con el documento sin `__v`, 404 con slug bien formado inexistente, 400 por slug requerido-vacío y por cada variante de formato inválido), ciclo de vida completo del CRUD contra Mongo en memoria — **POST** (201 con slug generado desde el alias, documento completo, persistencia, conflictos 409 por name/alias/slug), **PATCH** (semántica parcial, `name` inmutable, regeneración de slug por cambio de alias con invalidación de la URL vieja, 409 por colisión con otro héroe, casing que conserva el slug, 404) y **DELETE** (borrado real verificado en la colección y 404) — y subida de **imagen** (404, 415 por content-type, 400 por body vacío, 413 por el límite de 1MB del parser, 500 si Cloudinary falla dejando el héroe intacto, y 200 con la URL persistida; Cloudinary se **mockea** por ser un servicio externo de pago, todo lo demás corre real).
 
 ## Variables de entorno
 
@@ -82,6 +82,31 @@ Base URL: `http://localhost:4000/api`
 ```
 
 Pedir una página más allá de la última devuelve `data: []` con la metadata real, para que el front detecte que llegó al final. Parámetros inválidos (`page=0`, `page=abc`, `elements_per_page=51`) devuelven `400`.
+
+### `GET /heroes/:slug` — Obtener un héroe por slug
+
+Devuelve el documento completo del héroe cuyo slug coincida. El slug se valida **antes** de tocar la DB: tiene que ser un slug bien formado (minúsculas y números en palabras separadas por guiones simples, sin guiones en los bordes — el mismo formato que genera la librería `slug`).
+
+```json
+// GET /api/heroes/superman → 200
+{
+  "_id": "...",
+  "name": "Clark Kent",
+  "alias": "Superman",
+  "slug": "superman",
+  "powers": ["Súper fuerza"],
+  "description": "...",
+  "team": "...",
+  "status": "...",
+  "category": "...",
+  "universe": "...",
+  "image": "..."
+}
+```
+
+- `200` — encontrado. Body: el héroe directo (sin wrapper ni `__v`)
+- `400` — slug faltante o con formato inválido (`Super Man`, `SUPERMAN`, `super_man`, `-superman-`, `super--man`, símbolos, no-ASCII). Body: `{ "errors": [ ... ] }`
+- `404` — slug bien formado pero ningún héroe con ese slug. Body: `{ "msg": "Hero not found." }`
 
 ### `POST /heroes` — Crear
 
@@ -171,7 +196,7 @@ src/
 ├── dtos/
 │   └── hero.dto.ts    # Interfaces IHero e IHeroPageResponse
 ├── handlers/
-│   └── index.ts       # Lógica de los endpoints (addHero, getHeroes, updateHero, deleteHero, addHeroImage)
+│   └── index.ts       # Lógica de los endpoints (addHero, getHeroes, getHeroBySlug, updateHero, deleteHero, addHeroImage)
 ├── middleware/
 │   ├── errors.ts      # Error handler global (E11000 -> 409, body grande -> 413, CORS -> 403, resto -> 500)
 │   └── validation.ts  # Respuesta 400 con los errores de express-validator
@@ -182,6 +207,7 @@ src/
 ├── tests/
 │   ├── heroes.test.ts           # Validación de GET/POST (400s, sin DB)
 │   ├── heroes.db.test.ts        # Paginación del GET contra Mongo en memoria
+│   ├── heroes.get-by-slug.test.ts # GET por slug: 200, 404 y 400s de formato/requerido
 │   ├── heroes.empty-db.test.ts  # Edge: colección vacía (metadata en cero)
 │   ├── heroes.create.test.ts    # POST: feliz (201) + conflictos (409)
 │   ├── heroes.update.test.ts    # PATCH: parcial, name inmutable, slug, colisiones

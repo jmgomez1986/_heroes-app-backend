@@ -4,6 +4,7 @@ import { raw } from 'express';
 import {
   addHero,
   deleteHero,
+  getHeroBySlug,
   getHeroes,
   updateHero,
   addHeroImage,
@@ -25,6 +26,26 @@ router.get(
     .withMessage('elements_per_page must be an integer between 1 and 50'),
   handleInputErrors,
   getHeroes,
+);
+// Slug valido: minusculas y numeros en "palabras" separadas por guiones
+// simples, sin guiones en los bordes. Es exactamente el formato que genera
+// la libreria `slug` al crear un heroe, asi que un slug bien formado pero
+// inexistente cae en el 404 del handler, nunca en un 400.
+const HERO_SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+
+router.get(
+  '/heroes/:slug',
+  param('slug')
+    // `values: 'falsy'`: un slug vacio ('', null, undefined) cuenta como
+    // inexistente, para que el error sea "Slug is required" y no el de formato
+    .exists({ values: 'falsy' })
+    .withMessage('Slug is required')
+    .matches(HERO_SLUG_PATTERN)
+    .withMessage(
+      'Slug must be lowercase alphanumeric words separated by single hyphens',
+    ),
+  handleInputErrors,
+  getHeroBySlug,
 );
 router.post(
   '/heroes',
