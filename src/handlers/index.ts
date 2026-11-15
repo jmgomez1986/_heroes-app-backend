@@ -7,8 +7,31 @@ import {
   DEFAULT_ELEMENTS_PER_PAGE,
   DEFAULT_PAGE,
   EDITABLE_FIELDS,
+  FILTERABLE_TEXT_FIELDS,
 } from '../constants/default.constants';
 import slug from 'slug';
+
+// $regex recibe el input del usuario crudo: un caracter especial de regex
+// ('bat(', 'a.*') cambiaria el significado de la consulta o la haria
+// catastroficamente lenta (ReDoS). Se escapan todos los caracteres
+// especiales para que el termino busque como texto literal.
+const escapeRegex = (value: string) =>
+  value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+// Arma el filtro de Mongo desde el query string contra la whitelist. La
+// ruta ya valido que cada valor sea string; aca solo se decide si filtra
+// (valor no vacio) o se ignora (param fuera de la whitelist o vacio).
+const buildTextFilter = (query: Request['query']) => {
+  const filter: Record<string, unknown> = {};
+  for (const field of FILTERABLE_TEXT_FIELDS) {
+    const value = query[field];
+    const text = (Array.isArray(value) ? value[0] : value) ?? '';
+    if (text) {
+      filter[field] = { $regex: escapeRegex(String(text)), $options: 'i' };
+    }
+  }
+  return filter;
+};
 
 export const addHero = async (req: Request, resp: Response) => {
   const { name, alias } = req.body;
@@ -41,7 +64,10 @@ export const getHeroes = async (req: Request, resp: Response) => {
     ? parseInt(req.query.elements_per_page as string, 10)
     : DEFAULT_ELEMENTS_PER_PAGE;
 
-  const totalElements = await Hero.countDocuments();
+  // El count y el find usan el MISMO filtro: si el count ignorara los
+  // filtros, total_elements y total_pages mintirian sobre el listado
+  const filter = buildTextFilter(req.query);
+  const totalElements = await Hero.countDocuments(filter);
   const totalPages = Math.ceil(totalElements / elementsPerPage);
 
   // Edge case: una pagina mas alla de la ultima devuelve data vacia con la
@@ -49,7 +75,7 @@ export const getHeroes = async (req: Request, resp: Response) => {
   const data =
     page > totalPages
       ? []
-      : await Hero.find()
+      : await Hero.find(filter)
           .select('-__v')
           .sort({ _id: 1 })
           .skip((page - 1) * elementsPerPage)

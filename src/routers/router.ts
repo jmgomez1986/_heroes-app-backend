@@ -10,10 +10,27 @@ import {
   addHeroImage,
 } from '../handlers';
 import { handleInputErrors } from '../middleware/validation';
+import { HERO_SLUG_PATTERN, FILTERABLE_TEXT_FIELDS } from '../constants/default.constants';
 
 export const router = Router();
 
-// Ruteo
+// Contrato de formato del `:slug`, compartido por TODAS las rutas que lo
+// usan (GET, PATCH, DELETE, POST image). `values: 'falsy'`: un slug vacio
+// ('', null, undefined) cuenta como inexistente, para que el error sea
+// "Slug is required" y no el de formato.
+const slugParamRules = () =>
+  param('slug')
+    .exists({ values: 'falsy' })
+    .withMessage('Slug is required')
+    .matches(HERO_SLUG_PATTERN)
+    .withMessage(
+      'Slug must be lowercase alphanumeric words separated by single hyphens',
+    );
+
+/* -------------------
+     Ruteo
+-------------------- */
+/* GET /api/heroes */
 router.get(
   '/heroes',
   query('page')
@@ -24,29 +41,17 @@ router.get(
     .optional()
     .isInt({ min: 1, max: 50 })
     .withMessage('elements_per_page must be an integer between 1 and 50'),
+  // Filtros generados desde la whitelist: agregar un campo a
+  // FILTERABLE_TEXT_FIELDS agrega su validacion aca sin tocar el router
+  ...FILTERABLE_TEXT_FIELDS.map((field) =>
+    query(field).optional().isString().withMessage(`${field} must be a string`),
+  ),
   handleInputErrors,
   getHeroes,
 );
-// Slug valido: minusculas y numeros en "palabras" separadas por guiones
-// simples, sin guiones en los bordes. Es exactamente el formato que genera
-// la libreria `slug` al crear un heroe, asi que un slug bien formado pero
-// inexistente cae en el 404 del handler, nunca en un 400.
-const HERO_SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
-
-router.get(
-  '/heroes/:slug',
-  param('slug')
-    // `values: 'falsy'`: un slug vacio ('', null, undefined) cuenta como
-    // inexistente, para que el error sea "Slug is required" y no el de formato
-    .exists({ values: 'falsy' })
-    .withMessage('Slug is required')
-    .matches(HERO_SLUG_PATTERN)
-    .withMessage(
-      'Slug must be lowercase alphanumeric words separated by single hyphens',
-    ),
-  handleInputErrors,
-  getHeroBySlug,
-);
+/* GET /api/heroes/:slug */
+router.get('/heroes/:slug', slugParamRules(), handleInputErrors, getHeroBySlug);
+/* POST /heroes */
 router.post(
   '/heroes',
   body('name').notEmpty().withMessage('Name is required'),
@@ -59,8 +64,10 @@ router.post(
   handleInputErrors,
   addHero,
 );
+/* PATCH /api/heroes/:slug */
 router.patch(
   '/heroes/:slug',
+  slugParamRules(),
   body('description')
     .optional()
     .notEmpty()
@@ -82,12 +89,21 @@ router.patch(
   handleInputErrors,
   updateHero,
 );
-router.delete('/heroes/:slug', deleteHero);
+/* DELETE /api/:slug */
+router.delete(
+  '/heroes/:slug',
+  slugParamRules(),
+  // Fix: sin esto, los errores de validacion nunca se chequeaban y el
+  // handler corria igual (un slug mal formado devolvia 404 en vez de 400)
+  handleInputErrors,
+  deleteHero,
+);
+/* GET /heroes */
 // Upload de imagen del hero: binario crudo como body (no multipart).
 // El límite lo corta el parser mismo: si pasa 1mb, lanza error demasiado grande.
 router.post(
   '/heroes/:slug/image',
-  param('slug').notEmpty().withMessage('Slug is required'),
+  slugParamRules(),
   raw({
     type: ['image/png', 'image/jpeg'], // solo acepta ese Content-Type, el resto da 415
     limit: '1mb', // misma regla que muestra el front
