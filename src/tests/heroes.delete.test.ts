@@ -48,4 +48,17 @@ describe('DELETE /api/heroes/:slug', () => {
     expect(res.status).toBe(404);
     expect(res.body.msg).toBe('Hero not found');
   });
+
+  it('returns 400 when the slug format is invalid', async () => {
+    // Arrange & Act: 'Batman' no cumple el patron (mayusculas). El formato
+    // se valida en la ruta como en las demas rutas con :slug, ANTES de
+    // llegar al handler: 400, no el 404 de "no existe"
+    const res = await request(app).delete('/api/heroes/Batman');
+
+    // Asserts
+    expect(res.status).toBe(400);
+    expect(res.body.errors[0].msg).toBe(
+      'Slug must be lowercase alphanumeric words separated by single hyphens',
+    );
+  });
 });

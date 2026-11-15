@@ -66,6 +66,10 @@ Base URL: `http://localhost:4000/api`
 |---|---|---|
 | `page` | `1` | Entero ≥ 1 |
 | `elements_per_page` | `10` | Entero entre 1 y 50 |
+| `name` | — | String; coincidencia "contiene", case-insensitive |
+| `alias` | — | String; coincidencia "contiene", case-insensitive |
+
+Los filtros se **combinan** entre sí y con el paginado (`?name=bruce&elements_per_page=2`), y `total_elements` / `total_pages` reflejan el resultado filtrado, no el dataset completo. Los campos filtrables viven en `FILTERABLE_TEXT_FIELDS` (`src/constants/default.constants.ts`): sumar un campo ahí agrega su validación y su filtro sin tocar más código. Un query param fuera de la whitelist se ignora (no filtra, no falla).
 
 **200 OK:**
 
