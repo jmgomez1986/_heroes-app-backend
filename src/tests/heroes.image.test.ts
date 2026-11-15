@@ -2,8 +2,8 @@ import { beforeAll, afterAll, describe, it, expect, vi } from 'vitest';
 import { MongoMemoryServer } from 'mongodb-memory-server';
 import mongoose from 'mongoose';
 import request from 'supertest';
-import type { Writable } from 'stream';
-import type { UploadApiResponse, UploadApiErrorResponse } from 'cloudinary';
+import { Transform } from 'stream';
+import type { UploadApiResponse, UploadResponseCallback } from 'cloudinary';
 import { app } from '../server';
 import { Hero } from '../models/Hero';
 import { catalogHeroes, seedHeroes } from '../data/catalog';
@@ -36,6 +36,102 @@ const MOCK_SECURE_URL = 'https://res.cloudinary.com/heroes-app/iron-man.png';
 // mockeado aca): con el Content-Type y un Buffer no vacio alcanza. Si
 // el handler pasara a validar la firma, migrar a un fixture real
 const pngBytes = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+
+// ---------------------------------------------------------------------------
+// Tipado del mock de upload_stream
+// ---------------------------------------------------------------------------
+// La funcion real tiene DOS overloads: upload_stream(options?, callback?)
+// (el que usa el handler) y upload_stream(callback?). vi.mocked reduce la
+// funcion mockeada a la ULTIMA firma al tipar las implementaciones, pero el
+// handler SIEMPRE invoca la primera: en runtime el callback viaja como
+// segundo argumento. Estos helpers centralizan esa friccion para que los
+// tests no repitan casts ni firmas al any:
+//
+// - `streamCallbackOf` extrae el callback del arg #2 del runtime con un
+//   unico control de forma (un mock sin callback del handler es un bug del
+//   handler, no del test: se corta con error claro).
+// - `endOfStream` arma un Transform REAL (UploadStream extiende Transform,
+//   asi que es asignable al retorno esperado sin casts): el .end(buffer)
+//   del handler dispara 'finish' y ahi viaja el callback, asincronico
+//   como I/O genuina.
+// - `uploadResponseOf` construye un UploadApiResponse COMPLETO: los tests
+//   solo declaran los campos que el handler lee (public_id, secure_url).
+type UploadResponse = {
+  public_id: string;
+  secure_url: string;
+};
+
+const uploadResponseOf = (partial: UploadResponse): UploadApiResponse => ({
+  public_id: partial.public_id,
+  version: 0,
+  signature: '',
+  width: 0,
+  height: 0,
+  format: 'png',
+  resource_type: 'image',
+  created_at: '',
+  tags: [],
+  pages: 0,
+  bytes: 0,
+  type: 'upload',
+  etag: '',
+  placeholder: false,
+  url: '',
+  secure_url: partial.secure_url,
+  access_mode: 'public',
+  original_filename: '',
+  moderation: [],
+  access_control: [],
+  context: {},
+  metadata: {},
+});
+
+const streamCallbackOf = (args: unknown[]): UploadResponseCallback => {
+  const maybeCallback = args[1];
+  if (typeof maybeCallback !== 'function') {
+    throw new TypeError(
+      'upload_stream(options, callback) expected: the handler must pass the callback as the 2nd argument',
+    );
+  }
+  return maybeCallback as UploadResponseCallback;
+};
+
+const endOfStream = (deliver: () => void): Transform => {
+  const stream = new Transform({
+    transform(chunk, _encoding, pushChunk) {
+      pushChunk(null, chunk);
+    },
+  });
+  stream.on('finish', () => setImmediate(deliver));
+  return stream;
+};
+
+// Configura UNA llamada de subida exitosa y devuelve el mock, por si el
+// test quiere asertar sobre las options que le llegaron al stream
+const mockUploadStreamSuccess = (response: UploadResponse) => {
+  const uploadStreamMock = vi.mocked(cloudinary.uploader.upload_stream);
+  uploadStreamMock.mockImplementationOnce((...args: unknown[]) => {
+    const callback = streamCallbackOf(args);
+    // El callback de Cloudinary no acepta null como error (es
+    // `err?: UploadApiErrorResponse`): el "no error" es undefined
+    return endOfStream(() =>
+      callback(undefined, uploadResponseOf(response)),
+    );
+  });
+  return uploadStreamMock;
+};
+
+// Configura UNA llamada de subida que falla, como una caida real del servicio
+const mockUploadStreamError = (message: string) => {
+  const uploadStreamMock = vi.mocked(cloudinary.uploader.upload_stream);
+  uploadStreamMock.mockImplementationOnce((...args: unknown[]) => {
+    const callback = streamCallbackOf(args);
+    return endOfStream(() =>
+      callback({ name: 'Error', message, http_code: 500 }, undefined),
+    );
+  });
+  return uploadStreamMock;
+};
 
 beforeAll(async () => {
   // Arrange global: mongo en memoria + data sembrada. El unico test que
@@ -111,19 +207,7 @@ describe('POST /api/heroes/:slug/image', () => {
     // Arrange: el mock RECHAZA la subida, como una caida real del
     // servicio. Es la rama catch del handler, un camino de runtime
     // genuino (Cloudinary es externo: se va a caer)
-    const uploadStreamMock = vi.mocked(cloudinary.uploader.upload_stream);
-    uploadStreamMock.mockImplementationOnce((options, callback) => {
-      return {
-        end: () => {
-          setImmediate(() =>
-            callback(
-              new Error('Service unavailable') as UploadApiErrorResponse,
-              undefined,
-            ),
-          );
-        },
-      } as unknown as Writable;
-    });
+    mockUploadStreamError('Service unavailable');
 
     // Act
     const res = await request(app)
@@ -145,18 +229,9 @@ describe('POST /api/heroes/:slug/image', () => {
     // callback) y hace stream.end(buffer): el stream falso resuelve el
     // callback asincronicamente, como I/O real, con el resultado que
     // devolveria Cloudinary
-    const uploadStreamMock = vi.mocked(cloudinary.uploader.upload_stream);
-    uploadStreamMock.mockImplementationOnce((options, callback) => {
-      return {
-        end: () => {
-          setImmediate(() =>
-            callback(null, {
-              public_id: 'heroes-app/iron-man',
-              secure_url: MOCK_SECURE_URL,
-            } as UploadApiResponse),
-          );
-        },
-      } as unknown as Writable; // el handler solo usa .end: el resto del stream real sobra
+    const uploadStreamMock = mockUploadStreamSuccess({
+      public_id: 'heroes-app/iron-man',
+      secure_url: MOCK_SECURE_URL,
     });
 
     const ironMan = catalogHeroes.find((h: IHero) => h.slug === 'iron-man')!;
@@ -195,19 +270,10 @@ describe('POST /api/heroes/:slug/image', () => {
     // Primera subida de cyborg...
     const cyborg = catalogHeroes.find((h: IHero) => h.slug === 'cyborg')!;
     expect(cyborg).toBeDefined();
-    const uploadStreamMock = vi.mocked(cloudinary.uploader.upload_stream);
     const cyborgUrl = 'https://res.cloudinary.com/heroes-app/cyborg.png';
-    uploadStreamMock.mockImplementationOnce((_options, callback) => {
-      return {
-        end: () => {
-          setImmediate(() =>
-            callback(null, {
-              public_id: 'heroes-app/cyborg',
-              secure_url: cyborgUrl,
-            } as UploadApiResponse),
-          );
-        },
-      } as unknown as Writable;
+    const uploadStreamMock = mockUploadStreamSuccess({
+      public_id: 'heroes-app/cyborg',
+      secure_url: cyborgUrl,
     });
     const first = await request(app)
       .post('/api/heroes/cyborg/image')
@@ -224,17 +290,9 @@ describe('POST /api/heroes/:slug/image', () => {
     expect(renamed.body.response.slug).toBe('cyborg-prime');
 
     // Act: re-subida con el slug NUEVO
-    uploadStreamMock.mockImplementationOnce((_options, callback) => {
-      return {
-        end: () => {
-          setImmediate(() =>
-            callback(null, {
-              public_id: 'heroes-app/cyborg',
-              secure_url: cyborgUrl,
-            } as UploadApiResponse),
-          );
-        },
-      } as unknown as Writable;
+    mockUploadStreamSuccess({
+      public_id: 'heroes-app/cyborg',
+      secure_url: cyborgUrl,
     });
     const reupload = await request(app)
       .post('/api/heroes/cyborg-prime/image')
@@ -256,19 +314,10 @@ describe('POST /api/heroes/:slug/image', () => {
   it('never claims a public_id owned by another hero (freed slug)', async () => {
     // Arrange: el escenario del bug, la secuencia exacta del usuario.
     // 1) superman sube imagen: su asset nace heroes-app/superman
-    const uploadStreamMock = vi.mocked(cloudinary.uploader.upload_stream);
     const supermanUrl = 'https://res.cloudinary.com/heroes-app/superman.png';
-    uploadStreamMock.mockImplementationOnce((_options, callback) => {
-      return {
-        end: () => {
-          setImmediate(() =>
-            callback(null, {
-              public_id: 'heroes-app/superman',
-              secure_url: supermanUrl,
-            } as UploadApiResponse),
-          );
-        },
-      } as unknown as Writable;
+    const uploadStreamMock = mockUploadStreamSuccess({
+      public_id: 'heroes-app/superman',
+      secure_url: supermanUrl,
     });
     const first = await request(app)
       .post('/api/heroes/superman/image')
@@ -294,17 +343,9 @@ describe('POST /api/heroes/:slug/image', () => {
     // Act: flash sube su imagen. El candidato derivado
     // (heroes-app/superman) esta TOMADO por el renombrado -> sufijo -2
     const flashUrl = 'https://res.cloudinary.com/heroes-app/superman-2.png';
-    uploadStreamMock.mockImplementationOnce((_options, callback) => {
-      return {
-        end: () => {
-          setImmediate(() =>
-            callback(null, {
-              public_id: 'heroes-app/superman-2',
-              secure_url: flashUrl,
-            } as UploadApiResponse),
-          );
-        },
-      } as unknown as Writable;
+    mockUploadStreamSuccess({
+      public_id: 'heroes-app/superman-2',
+      secure_url: flashUrl,
     });
     const res = await request(app)
       .post('/api/heroes/superman/image')
@@ -330,19 +371,10 @@ describe('POST /api/heroes/:slug/image', () => {
 
   it('destroys the Cloudinary asset when the hero is deleted', async () => {
     // Arrange: aquaman con imagen subida (su public_id guardado)
-    const uploadStreamMock = vi.mocked(cloudinary.uploader.upload_stream);
     const aquamanUrl = 'https://res.cloudinary.com/heroes-app/aquaman.png';
-    uploadStreamMock.mockImplementationOnce((_options, callback) => {
-      return {
-        end: () => {
-          setImmediate(() =>
-            callback(null, {
-              public_id: 'heroes-app/aquaman',
-              secure_url: aquamanUrl,
-            } as UploadApiResponse),
-          );
-        },
-      } as unknown as Writable;
+    mockUploadStreamSuccess({
+      public_id: 'heroes-app/aquaman',
+      secure_url: aquamanUrl,
     });
     const upload = await request(app)
       .post('/api/heroes/aquaman/image')
@@ -352,7 +384,7 @@ describe('POST /api/heroes/:slug/image', () => {
 
     const destroyMock = vi.mocked(cloudinary.uploader.destroy);
     destroyMock.mockClear();
-    destroyMock.mockResolvedValueOnce({ result: 'ok' } as never); // el handler no lee el shape
+    destroyMock.mockResolvedValueOnce({ result: 'ok' }); // el handler no lee el shape
 
     // Act
     const res = await request(app).delete('/api/heroes/aquaman');
@@ -384,19 +416,10 @@ describe('POST /api/heroes/:slug/image', () => {
     const consoleSpy = vi
       .spyOn(console, 'error')
       .mockImplementation(() => {});
-    const uploadStreamMock = vi.mocked(cloudinary.uploader.upload_stream);
     const ravenUrl = 'https://res.cloudinary.com/heroes-app/raven.png';
-    uploadStreamMock.mockImplementationOnce((_options, callback) => {
-      return {
-        end: () => {
-          setImmediate(() =>
-            callback(null, {
-              public_id: 'heroes-app/raven',
-              secure_url: ravenUrl,
-            } as UploadApiResponse),
-          );
-        },
-      } as unknown as Writable;
+    mockUploadStreamSuccess({
+      public_id: 'heroes-app/raven',
+      secure_url: ravenUrl,
     });
     const upload = await request(app)
       .post('/api/heroes/raven/image')

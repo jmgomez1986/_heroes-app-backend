@@ -12,8 +12,12 @@ export const connectDB = async () => {
     console.log(
       `MongoDB connected: ${connection.connection.host}:${connection.connection.port}`,
     );
-  } catch (error: any) {
-    console.log(error.message);
+  } catch (error) {
+    // `unknown` obliga a acotar antes de leer: `error.message` directo en
+    // un catchAny es uno de los any mas famosos de TypeScript. El mensaje
+    // del fallo de conexion vive en Error, pero nada garantiza que lo que
+    // se lanzo sea uno: se degrada con gracia si no lo es
+    console.log(error instanceof Error ? error.message : String(error));
     process.exit(1);
   }
 };
