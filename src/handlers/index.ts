@@ -305,3 +305,22 @@ export const addHeroImage = async (req: Request, resp: Response) => {
       .json({ msg: 'Error uploading image to Cloudinary.' });
   }
 };
+
+export const getHeroesStats = async (req: Request, resp: Response) => {
+  try {
+    const totalElements = await Hero.countDocuments();
+    const totalHeroes = await Hero.countDocuments({ category: 'Hero' });
+    const totalVillains = await Hero.countDocuments({ category: 'Villain' });
+
+    resp.json({
+      total_elements: totalElements,
+      total_heroes: totalHeroes,
+      total_villains: totalVillains,
+    });
+  } catch (error) {
+    // Sin datos que corromper el fallo solo deja sin respuesta al front:
+    // mensaje propio del endpoint en vez del 500 generico del handler global
+    console.error('Error fetching hero stats:', error);
+    resp.status(500).json({ msg: 'Error fetching hero stats.' });
+  }
+};

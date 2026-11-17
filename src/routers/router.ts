@@ -8,9 +8,13 @@ import {
   getHeroes,
   updateHero,
   addHeroImage,
+  getHeroesStats,
 } from '../handlers';
 import { handleInputErrors } from '../middleware/validation';
-import { HERO_SLUG_PATTERN, FILTERABLE_TEXT_FIELDS } from '../constants/default.constants';
+import {
+  HERO_SLUG_PATTERN,
+  FILTERABLE_TEXT_FIELDS,
+} from '../constants/default.constants';
 
 export const router = Router();
 
@@ -49,6 +53,11 @@ router.get(
   handleInputErrors,
   getHeroes,
 );
+/* GET /api/heroes/stats */
+// Devuelve los stats como Total de heroes, Total de Villanos, Total del catalogo
+// Declarada ANTES de /heroes/:slug: Express matchea en orden de registro y
+// si la dinamica va primera, capturaria 'stats' como slug (404 Hero not found)
+router.get('/heroes/stats', getHeroesStats);
 /* GET /api/heroes/:slug */
 router.get('/heroes/:slug', slugParamRules(), handleInputErrors, getHeroBySlug);
 /* POST /heroes */
@@ -98,7 +107,7 @@ router.delete(
   handleInputErrors,
   deleteHero,
 );
-/* GET /heroes */
+/* POST /api/heroes/:slug/image */
 // Upload de imagen del hero: binario crudo como body (no multipart).
 // El límite lo corta el parser mismo: si pasa 1mb, lanza error demasiado grande.
 router.post(
