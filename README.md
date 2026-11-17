@@ -40,7 +40,7 @@ API REST para administrar un catálogo de superhéroes: creación, consulta pagi
 
 Los tests **no tocan la base de datos real**: los casos que consultan datos corren contra una **MongoDB en memoria** (`mongodb-memory-server`) que se crea y destruye con la suite. `NODE_ENV=test` (lo setea Vitest automáticamente) habilita el CORS para clientes sin `Origin`.
 
-Cobertura actual: validación de GET/POST (`400` con mensajes exactos, incluida la acumulación de errores), paginación completa del GET (defaults, ventanas exactas por `_id`, última página parcial, página inexistente con metadata intacta y colección vacía), **GET por slug** (200 con el documento sin `__v`, 404 con slug bien formado inexistente, 400 por slug requerido-vacío y por cada variante de formato inválido), ciclo de vida completo del CRUD contra Mongo en memoria — **POST** (201 con slug generado desde el alias, documento completo, persistencia, conflictos 409 por name/alias/slug), **PATCH** (semántica parcial, `name` inmutable, regeneración de slug por cambio de alias con invalidación de la URL vieja, 409 por colisión con otro héroe, casing que conserva el slug, 404) y **DELETE** (borrado real verificado en la colección y 404) — y subida de **imagen** (404, 415 por content-type, 400 por body vacío, 413 por el límite de 1MB del parser, 500 si Cloudinary falla dejando el héroe intacto, y 200 con la URL persistida; Cloudinary se **mockea** por ser un servicio externo de pago, todo lo demás corre real).
+Cobertura actual: validación de GET/POST (`400` con mensajes exactos, incluida la acumulación de errores), paginación completa del GET (defaults, ventanas exactas por `_id`, última página parcial, página inexistente con metadata intacta y colección vacía), **GET por slug** (200 con el documento sin `__v`, 404 con slug bien formado inexistente, 400 por slug requerido-vacío y por cada variante de formato inválido), **stats** (totales del catálogo, 500 con mensaje propio si la consulta falla y la ruta no sombreada por `/:slug`), ciclo de vida completo del CRUD contra Mongo en memoria — **POST** (201 con slug generado desde el alias, documento completo, persistencia, conflictos 409 por name/alias/slug), **PATCH** (semántica parcial, `name` inmutable, regeneración de slug por cambio de alias con invalidación de la URL vieja, 409 por colisión con otro héroe, casing que conserva el slug, 404) y **DELETE** (borrado real verificado en la colección y 404) — y subida de **imagen** (404, 415 por content-type, 400 por body vacío, 413 por el límite de 1MB del parser, 500 si Cloudinary falla dejando el héroe intacto, y 200 con la URL persistida; Cloudinary se **mockea** por ser un servicio externo de pago, todo lo demás corre real).
 
 ## Variables de entorno
 
@@ -86,6 +86,24 @@ Los filtros se **combinan** entre sí y con el paginado (`?name=bruce&elements_p
 ```
 
 Pedir una página más allá de la última devuelve `data: []` con la metadata real, para que el front detecte que llegó al final. Parámetros inválidos (`page=0`, `page=abc`, `elements_per_page=51`) devuelven `400`.
+
+### `GET /heroes/stats` — Totales del catálogo
+
+Devuelve los contadores del catálogo sin paginación ni filtros.
+
+```json
+// GET /api/heroes/stats → 200
+{
+  "total_elements": 25,
+  "total_heroes": 18,
+  "total_villains": 7
+}
+```
+
+- `200` — totales calculados sobre la colección completa
+- `500` — fallo de la consulta a la DB. Body: `{ "msg": "Error fetching hero stats." }`
+
+> **Ruta reservada**: `stats` no puede usarse como slug de un héroe — esta ruta se declara antes que `GET /heroes/:slug` para que la estática no sea capturada por la dinámica (regla de Express: las rutas específicas primero).
 
 ### `GET /heroes/:slug` — Obtener un héroe por slug
 
@@ -182,6 +200,7 @@ this.http.post(`${apiUrl}/heroes/${slug}/image`, file, {
 | **Primer `public_id` verificado contra la DB (sufijo `-2`, `-3`...)** | Un slug liberado por un rename puede ser reclamado por otro héroe (`Superman → Superman Prime`, luego `Flash → Superman`): sin el check, la re-subida del nuevo pisaría el asset del anterior (dos héroes con la misma imagen, corrupción silenciosa). El sufijo mantiene nombres legibles en el dashboard |
 | **`folder` fuera de las options de upload** | Cloudinary **concatena** `folder + public_id` cuando ambos viajan: se pasa el id completo (carpeta incluida) para no prefijar dos veces |
 | **Destroy best-effort al borrar el héroe** | El asset en Cloudinary muere con su héroe (el último caso de huérfano). El borrado del héroe **jamás** depende de Cloudinary: si el destroy falla, el `DELETE` responde igual y el log nombra el `public_id` para limpieza manual |
+| **Rutas específicas antes que dinámicas** (`/heroes/stats` declarada antes de `/heroes/:slug`) | Express matchea en orden de registro: si la dinámica con parámetro va primera, captura `stats` como slug y el endpoint devolvía `404 Hero not found.` |
 | **Body demasiado grande mapeado a `413` en el error handler global** | `express.raw` (imágenes: 1MB) y `express.json` (default 100KB) cortan fuera del handler; sin el mapeo, Express 5 lo delegaba al error handler y quedaba como `500` engañoso |
 
 ## Estructura del proyecto
@@ -200,7 +219,7 @@ src/
 ├── dtos/
 │   └── hero.dto.ts    # Interfaces IHero e IHeroPageResponse
 ├── handlers/
-│   └── index.ts       # Lógica de los endpoints (addHero, getHeroes, getHeroBySlug, updateHero, deleteHero, addHeroImage)
+│   └── index.ts       # Lógica de los endpoints (addHero, getHeroes, getHeroBySlug, updateHero, deleteHero, addHeroImage, getHeroesStats)
 ├── middleware/
 │   ├── errors.ts      # Error handler global (E11000 -> 409, body grande -> 413, CORS -> 403, resto -> 500)
 │   └── validation.ts  # Respuesta 400 con los errores de express-validator
@@ -212,6 +231,7 @@ src/
 │   ├── heroes.test.ts           # Validación de GET/POST (400s, sin DB)
 │   ├── heroes.db.test.ts        # Paginación del GET contra Mongo en memoria
 │   ├── heroes.get-by-slug.test.ts # GET por slug: 200, 404 y 400s de formato/requerido
+│   ├── heroes.stats.test.ts       # GET stats: totales, 500 propio y ruta no sombreada
 │   ├── heroes.empty-db.test.ts  # Edge: colección vacía (metadata en cero)
 │   ├── heroes.create.test.ts    # POST: feliz (201) + conflictos (409)
 │   ├── heroes.update.test.ts    # PATCH: parcial, name inmutable, slug, colisiones
