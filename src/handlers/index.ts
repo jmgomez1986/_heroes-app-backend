@@ -311,11 +311,19 @@ export const getHeroesStats = async (req: Request, resp: Response) => {
     const totalElements = await Hero.countDocuments();
     const totalHeroes = await Hero.countDocuments({ category: 'Hero' });
     const totalVillains = await Hero.countDocuments({ category: 'Villain' });
+    // Estado: el enum del modelo garantiza que Active + Inactive + Deceased
+    // cierra contra total_elements (no hay valores fuera del dominio).
+    const totalActive = await Hero.countDocuments({ status: 'Active' });
+    const totalInactive = await Hero.countDocuments({ status: 'Inactive' });
+    const totalDeceased = await Hero.countDocuments({ status: 'Deceased' });
 
     resp.json({
       total_elements: totalElements,
       total_heroes: totalHeroes,
       total_villains: totalVillains,
+      total_active: totalActive,
+      total_inactive: totalInactive,
+      total_deceased: totalDeceased,
     });
   } catch (error) {
     // Sin datos que corromper el fallo solo deja sin respuesta al front:

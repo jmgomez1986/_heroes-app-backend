@@ -1,3 +1,5 @@
+import type { HeroStatus } from '../constants/default.constants';
+
 export interface IHero {
   name: string;
   alias: string;
@@ -9,7 +11,7 @@ export interface IHero {
   // Identidad del asset en Cloudinary (internos del backend, el front
   // no la consume): ausente hasta la primera subida
   imagePublicId?: string;
-  status: string;
+  status: HeroStatus;
   category: string;
   universe: string;
 }
