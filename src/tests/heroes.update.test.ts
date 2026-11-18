@@ -32,14 +32,14 @@ describe('PATCH /api/heroes/:slug', () => {
 
     // Act
     const res = await request(app).patch('/api/heroes/flash').send({
-      status: 'Retired',
+      status: 'Inactive',
       team: 'Justice League Dark',
     });
 
     // Assert: lo enviado cambia...
     expect(res.status).toBe(200);
     expect(res.body.msg).toBe('Hero modified correctly');
-    expect(res.body.response.status).toBe('Retired');
+    expect(res.body.response.status).toBe('Inactive');
     expect(res.body.response.team).toBe('Justice League Dark');
     // ...y lo NO enviado queda intacto (el nucleo de la semantica PATCH)
     expect(res.body.response.alias).toBe(flash.alias);
@@ -130,7 +130,7 @@ describe('PATCH /api/heroes/:slug', () => {
     // Act
     const res = await request(app)
       .patch('/api/heroes/no-existo')
-      .send({ status: 'Retired' });
+      .send({ status: 'Inactive' });
 
     // Assert: msg exacto del handler -- CON punto final (distinto del DELETE)
     expect(res.status).toBe(404);

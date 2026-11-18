@@ -13,6 +13,8 @@ import {
 import { handleInputErrors } from '../middleware/validation';
 import {
   HERO_SLUG_PATTERN,
+  HERO_STATUSES,
+  HERO_STATUSES_MESSAGE,
   FILTERABLE_TEXT_FIELDS,
 } from '../constants/default.constants';
 
@@ -67,7 +69,12 @@ router.post(
   body('alias').notEmpty().withMessage('Alias is required'),
   body('description').notEmpty().withMessage('Description is required'),
   body('team').notEmpty().withMessage('Team is required'),
-  body('status').notEmpty().withMessage('Status is required'),
+  body('status')
+    .notEmpty()
+    .withMessage('Status is required')
+    .bail()
+    .isIn(HERO_STATUSES)
+    .withMessage(HERO_STATUSES_MESSAGE),
   body('category').notEmpty().withMessage('Category is required'),
   body('universe').notEmpty().withMessage('Universe is required'),
   handleInputErrors,
@@ -82,7 +89,13 @@ router.patch(
     .notEmpty()
     .withMessage('Description cannot be empty'),
   body('team').optional().notEmpty().withMessage('Team cannot be empty'),
-  body('status').optional().notEmpty().withMessage('Status cannot be empty'),
+  body('status')
+    .optional()
+    .notEmpty()
+    .withMessage('Status cannot be empty')
+    .bail()
+    .isIn(HERO_STATUSES)
+    .withMessage(HERO_STATUSES_MESSAGE),
   body('category')
     .optional()
     .notEmpty()

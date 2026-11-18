@@ -1,5 +1,6 @@
 import mongoose, { Schema } from 'mongoose';
 import { IHero } from '../dtos/hero.dto';
+import { HERO_STATUSES } from '../constants/default.constants';
 
 const heroSchema = new Schema({
   name: {
@@ -58,6 +59,10 @@ const heroSchema = new Schema({
     type: String,
     required: true,
     trim: true,
+    // Dominio cerrado: solo los estados de HERO_STATUSES. La validacion de la
+    // ruta devuelve 400 antes de llegar aca; el enum es la ultima defensa
+    // para escrituras que no pasan por el router (seed, scripts directos).
+    enum: HERO_STATUSES,
   },
   category: {
     type: String,
