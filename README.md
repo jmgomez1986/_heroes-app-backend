@@ -40,7 +40,7 @@ API REST para administrar un catálogo de superhéroes: creación, consulta pagi
 
 Los tests **no tocan la base de datos real**: los casos que consultan datos corren contra una **MongoDB en memoria** (`mongodb-memory-server`) que se crea y destruye con la suite. `NODE_ENV=test` (lo setea Vitest automáticamente) habilita el CORS para clientes sin `Origin`.
 
-Cobertura actual: validación de GET/POST (`400` con mensajes exactos, incluida la acumulación de errores), paginación completa del GET (defaults, ventanas exactas por `_id`, última página parcial, página inexistente con metadata intacta y colección vacía), **GET por slug** (200 con el documento sin `__v`, 404 con slug bien formado inexistente, 400 por slug requerido-vacío y por cada variante de formato inválido), **stats** (totales del catálogo, 500 con mensaje propio si la consulta falla y la ruta no sombreada por `/:slug`), ciclo de vida completo del CRUD contra Mongo en memoria — **POST** (201 con slug generado desde el alias, documento completo, persistencia, conflictos 409 por name/alias/slug), **PATCH** (semántica parcial, `name` inmutable, regeneración de slug por cambio de alias con invalidación de la URL vieja, 409 por colisión con otro héroe, casing que conserva el slug, 404) y **DELETE** (borrado real verificado en la colección y 404) — y subida de **imagen** (404, 415 por content-type, 400 por body vacío, 413 por el límite de 1MB del parser, 500 si Cloudinary falla dejando el héroe intacto, y 200 con la URL persistida; Cloudinary se **mockea** por ser un servicio externo de pago, todo lo demás corre real).
+Cobertura actual: validación de GET/POST (`400` con mensajes exactos, incluida la acumulación de errores), paginación completa del GET (defaults, ventanas exactas por `_id`, última página parcial, página inexistente con metadata intacta y colección vacía), **GET por slug** (200 con el documento sin `__v`, 404 con slug bien formado inexistente, 400 por slug requerido-vacío y por cada variante de formato inválido), **stats** (totales del catálogo, 500 con mensaje propio si la consulta falla y la ruta no sombreada por `/:slug`), **filtros de texto libre** (`name`/`alias`/`team`/`universe` con contains, normalización de acentos y artículo inicial), **filtros de valor cerrado** (`category`/`status` exactos, case-insensitive, 400 por status fuera del dominio), combinación AND entre filtros y paginado, y params fuera de la whitelist ignorados, ciclo de vida completo del CRUD contra Mongo en memoria — **POST** (201 con slug generado desde el alias, documento completo, persistencia, conflictos 409 por name/alias/slug), **PATCH** (semántica parcial, `name` inmutable, regeneración de slug por cambio de alias con invalidación de la URL vieja, 409 por colisión con otro héroe, casing que conserva el slug, 404) y **DELETE** (borrado real verificado en la colección y 404) — y subida de **imagen** (404, 415 por content-type, 400 por body vacío, 413 por el límite de 1MB del parser, 500 si Cloudinary falla dejando el héroe intacto, y 200 con la URL persistida; Cloudinary se **mockea** por ser un servicio externo de pago, todo lo demás corre real).
 
 ## Variables de entorno
 
@@ -66,10 +66,14 @@ Base URL: `http://localhost:4000/api`
 |---|---|---|
 | `page` | `1` | Entero ≥ 1 |
 | `elements_per_page` | `10` | Entero entre 1 y 50 |
-| `name` | — | String; coincidencia "contiene", case-insensitive |
-| `alias` | — | String; coincidencia "contiene", case-insensitive |
+| `name` | — | Texto libre; "contiene", case-insensitive y acento-insensitive |
+| `alias` | — | Ídem |
+| `team` | — | Ídem; ignora el artículo inicial (`los vengadores` matchea `Vengadores`) |
+| `universe` | — | Ídem |
+| `category` | — | Exacto (`Hero` \| `Villain`), case-insensitive (selector en el front) |
+| `status` | — | Exacto (`Active` \| `Inactive` \| `Deceased`), case-insensitive; otro valor → `400` |
 
-Los filtros se **combinan** entre sí y con el paginado (`?name=bruce&elements_per_page=2`), y `total_elements` / `total_pages` reflejan el resultado filtrado, no el dataset completo. Los campos filtrables viven en `FILTERABLE_TEXT_FIELDS` (`src/constants/default.constants.ts`): sumar un campo ahí agrega su validación y su filtro sin tocar más código. Un query param fuera de la whitelist se ignora (no filtra, no falla).
+Los filtros se **combinan** entre sí (AND) y con el paginado (`?name=bruce&elements_per_page=2`), y `total_elements` / `total_pages` reflejan el resultado filtrado, no el dataset completo. Los filtros de texto libre viven en `FILTERABLE_TEXT_FIELDS` y los de valor cerrado en `FILTERABLE_EXACT_FIELDS` (`src/constants/default.constants.ts`): sumar un campo de texto ahí agrega su validación y su filtro sin tocar el handler. La comparación de texto es "contiene", case-insensitive y **acento-insensitive**: `?team=jovenes` encuentra `Jóvenes Titanes` y `?team=los vengadores` encuentra `Vengadores` (el acento lo aporta el documento guardado, no el query). `description` no es filtrable. Un query param fuera de la whitelist se ignora (no filtra, no falla).
 
 **200 OK:**
 
@@ -201,6 +205,7 @@ this.http.post(`${apiUrl}/heroes/${slug}/image`, file, {
 | **`folder` fuera de las options de upload** | Cloudinary **concatena** `folder + public_id` cuando ambos viajan: se pasa el id completo (carpeta incluida) para no prefijar dos veces |
 | **Destroy best-effort al borrar el héroe** | El asset en Cloudinary muere con su héroe (el último caso de huérfano). El borrado del héroe **jamás** depende de Cloudinary: si el destroy falla, el `DELETE` responde igual y el log nombra el `public_id` para limpieza manual |
 | **Rutas específicas antes que dinámicas** (`/heroes/stats` declarada antes de `/heroes/:slug`) | Express matchea en orden de registro: si la dinámica con parámetro va primera, captura `stats` como slug y el endpoint devolvía `404 Hero not found.` |
+| **Filtros de texto acento-insensitive en la regex, no en la data** | `$regex` ignora la collation de Mongo, y guardar sin acentos degradaría el display (`Capitán América`, `Súper fuerza` en 23 héroes). El query se normaliza y cada letra se expande a sus variantes: la data conserva su grafía y `?name=capitan` igual encuentra `Capitán América` |
 | **Body demasiado grande mapeado a `413` en el error handler global** | `express.raw` (imágenes: 1MB) y `express.json` (default 100KB) cortan fuera del handler; sin el mapeo, Express 5 lo delegaba al error handler y quedaba como `500` engañoso |
 
 ## Estructura del proyecto

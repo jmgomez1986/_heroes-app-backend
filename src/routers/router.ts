@@ -15,6 +15,7 @@ import {
   HERO_SLUG_PATTERN,
   HERO_STATUSES,
   HERO_STATUSES_MESSAGE,
+  FILTERABLE_EXACT_FIELDS,
   FILTERABLE_TEXT_FIELDS,
 } from '../constants/default.constants';
 
@@ -52,6 +53,22 @@ router.get(
   ...FILTERABLE_TEXT_FIELDS.map((field) =>
     query(field).optional().isString().withMessage(`${field} must be a string`),
   ),
+  // Valores cerrados (selectores del front): la comparacion es exacta, pero
+  // el tipo se valida igual desde la whitelist
+  ...FILTERABLE_EXACT_FIELDS.map((field) =>
+    query(field).optional().isString().withMessage(`${field} must be a string`),
+  ),
+  // `status` es enum cerrado: un valor fuera del dominio devuelve 400 con el
+  // mismo mensaje que POST/PATCH, no un filtro vacio silencioso.
+  // Case-insensitive para no atar el contrato al casing del selector.
+  query('status')
+    .optional()
+    .custom((value) =>
+      HERO_STATUSES.some(
+        (status) => status.toLowerCase() === String(value).toLowerCase(),
+      ),
+    )
+    .withMessage(HERO_STATUSES_MESSAGE),
   handleInputErrors,
   getHeroes,
 );

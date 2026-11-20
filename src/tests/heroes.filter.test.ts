@@ -5,6 +5,7 @@ import request from 'supertest';
 import { Hero } from '../models/Hero';
 import { catalogHeroes, seedHeroes } from '../data/catalog';
 import { IHero } from '../dtos/hero.dto';
+import { HERO_STATUSES_MESSAGE } from '../constants/default.constants';
 import { app } from '../server';
 
 let mongo: MongoMemoryServer;
@@ -24,15 +25,30 @@ afterAll(async () => {
 
 // El numero esperado SIEMPRE deriva del dataset sembrado (misma politica
 // que heroes.db.test.ts): si el catalogo cambia, el test sigue siendo
-// correcto sin editar assertions
+// correcto sin editar assertions. `fold` replica la normalizacion del
+// backend (sin acentos, minusculas) para que el esperado mida la semantica
+// real del filtro.
+const fold = (value: string) =>
+  value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+
 const matchesName = (term: string) =>
   catalogHeroes.filter((hero: IHero) =>
-    hero.name.toLowerCase().includes(term.toLowerCase()),
+    fold(hero.name).includes(fold(term)),
   ).length;
 
 const matchesAlias = (term: string) =>
   catalogHeroes.filter((hero: IHero) =>
-    hero.alias.toLowerCase().includes(term.toLowerCase()),
+    fold(hero.alias).includes(fold(term)),
+  ).length;
+
+const matchesText = (field: keyof IHero, term: string) =>
+  catalogHeroes.filter((hero: IHero) =>
+    fold(String(hero[field])).includes(fold(term)),
+  ).length;
+
+const matchesExact = (field: keyof IHero, value: string) =>
+  catalogHeroes.filter(
+    (hero: IHero) => String(hero[field]).toLowerCase() === value.toLowerCase(),
   ).length;
 
 describe('GET /api/heroes filtering', () => {
@@ -66,8 +82,8 @@ describe('GET /api/heroes filtering', () => {
     // Arrange: "bruce" en name y "batman" en alias solo puede ser Batman
     const expected = catalogHeroes.filter(
       (hero: IHero) =>
-        hero.name.toLowerCase().includes('bruce') &&
-        hero.alias.toLowerCase().includes('batman'),
+        fold(hero.name).includes('bruce') &&
+        fold(hero.alias).includes('batman'),
     ).length;
 
     // Act
@@ -88,7 +104,7 @@ describe('GET /api/heroes filtering', () => {
     const elementsPerPage = 2;
     const expected = matchesName('e');
     const expectedSlugs = catalogHeroes
-      .filter((hero: IHero) => hero.name.toLowerCase().includes('e'))
+      .filter((hero: IHero) => fold(hero.name).includes('e'))
       .slice(0, elementsPerPage)
       .map((hero: IHero) => hero.slug);
 
@@ -131,12 +147,129 @@ describe('GET /api/heroes filtering', () => {
     expect(res.body.data).toEqual([]);
   });
 
+  it('filters by team with a case-insensitive contains match', async () => {
+    // Act
+    const res = await request(app).get('/api/heroes?team=vengadores');
+
+    // Assert
+    expect(res.status).toBe(200);
+    expect(res.body.total_elements).toBe(matchesText('team', 'vengadores'));
+    expect(res.body.total_elements).toBeGreaterThan(0);
+    for (const hero of res.body.data) {
+      expect(fold(hero.team)).toContain('vengadores');
+    }
+  });
+
+  it('filters by universe with a case-insensitive contains match', async () => {
+    // Act
+    const res = await request(app).get('/api/heroes?universe=marvel');
+
+    // Assert
+    expect(res.status).toBe(200);
+    expect(res.body.total_elements).toBe(matchesText('universe', 'marvel'));
+    expect(res.body.total_elements).toBeGreaterThan(0);
+    for (const hero of res.body.data) {
+      expect(fold(hero.universe)).toContain('marvel');
+    }
+  });
+
+  it('ignores a leading article in the filter term', async () => {
+    // Arrange: con match "contains", sacar el articulo solo puede ampliar
+    const expected = matchesText('team', 'vengadores');
+
+    // Act
+    const res = await request(app).get('/api/heroes?team=los%20vengadores');
+
+    // Assert
+    expect(res.status).toBe(200);
+    expect(expected).toBeGreaterThan(0);
+    expect(res.body.total_elements).toBe(expected);
+  });
+
+  it('matches accented stored values when the query has no accents', async () => {
+    // Arrange: el catalogo guarda "Jovenes Titanes" con acento en la o
+    const expected = matchesText('team', 'jovenes');
+
+    // Act
+    const res = await request(app).get('/api/heroes?team=jovenes');
+
+    // Assert
+    expect(res.status).toBe(200);
+    expect(expected).toBeGreaterThan(0);
+    expect(res.body.total_elements).toBe(expected);
+    expect(res.body.data.map((hero: IHero) => hero.team)).toContain(
+      'Jóvenes Titanes',
+    );
+  });
+
+  it('matches accented alias values when the query has no accents', async () => {
+    // Act
+    const res = await request(app).get('/api/heroes?alias=fenix');
+
+    // Assert
+    expect(res.status).toBe(200);
+    expect(res.body.total_elements).toBe(matchesAlias('fenix'));
+    expect(res.body.total_elements).toBeGreaterThan(0);
+    expect(res.body.data.map((hero: IHero) => hero.alias)).toContain('Fénix');
+  });
+
+  it('filters by status with an exact case-insensitive match', async () => {
+    // Act
+    const res = await request(app).get('/api/heroes?status=active');
+
+    // Assert
+    expect(res.status).toBe(200);
+    expect(res.body.total_elements).toBe(matchesExact('status', 'Active'));
+    expect(res.body.total_elements).toBeGreaterThan(0);
+    for (const hero of res.body.data) {
+      expect(hero.status).toBe('Active');
+    }
+  });
+
+  it('rejects a status outside the enum domain with 400', async () => {
+    // Act: "activ" es un prefijo de "Active", no un valor del dominio
+    const res = await request(app).get('/api/heroes?status=activ');
+
+    // Assert
+    expect(res.status).toBe(400);
+    expect(res.body.errors[0].msg).toBe(HERO_STATUSES_MESSAGE);
+  });
+
+  it('filters by category with an exact case-insensitive match', async () => {
+    // Act
+    const res = await request(app).get('/api/heroes?category=villain');
+
+    // Assert
+    expect(res.status).toBe(200);
+    expect(res.body.total_elements).toBe(matchesExact('category', 'Villain'));
+    expect(res.body.total_elements).toBeGreaterThan(0);
+    for (const hero of res.body.data) {
+      expect(hero.category).toBe('Villain');
+    }
+  });
+
+  it('combines text and exact filters (AND semantics)', async () => {
+    // Arrange
+    const expected = catalogHeroes.filter(
+      (hero: IHero) =>
+        fold(hero.universe).includes('dc') &&
+        hero.status.toLowerCase() === 'active',
+    ).length;
+
+    // Act
+    const res = await request(app).get('/api/heroes?universe=DC&status=Active');
+
+    // Assert
+    expect(res.status).toBe(200);
+    expect(expected).toBeGreaterThan(0);
+    expect(res.body.total_elements).toBe(expected);
+  });
+
   it('ignores query params outside the filterable whitelist', async () => {
-    // Act: 'team' NO es filtrable todavia (decision: solo name y alias por
-    // ahora). El param desconocido no filtra y no rompe: responde el
-    // dataset completo
+    // Act: 'description' queda fuera de la whitelist por decision de diseño.
+    // El param desconocido no filtra y no rompe: responde el dataset completo
     const res = await request(app).get(
-      '/api/heroes?team=Liga%20de%20la%20Justicia',
+      '/api/heroes?description=traje%20de%20murcielago',
     );
 
     // Assert

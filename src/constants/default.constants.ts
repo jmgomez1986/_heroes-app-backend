@@ -16,13 +16,24 @@ export const EDITABLE_FIELDS = [
   'universe',
 ];
 
-// Campos filtrables de GET /api/heroes. Coincidencia "contiene,
-// case-insensitive" ($regex escapado). Para expandir (team, universe,
-// status, category): agregar el campo aca y el router/handler lo toman
-// solo. Cuando entren campos numericos (fuerza, inteligencia), subir de
-// lista a mapa de config con tipo y rango por campo. La descripcion queda
-// excluida por decision de diseño.
-export const FILTERABLE_TEXT_FIELDS = ['name', 'alias'] as const;
+// Campos filtrables de texto libre de GET /api/heroes. Coincidencia
+// "contiene", case-insensitive, acento-insensitive (el acento lo aporta el
+// documento guardado) y con el articulo inicial ignorado ("los vengadores"
+// matchea "Vengadores"). Sumar un campo aca agrega su validacion y su filtro
+// sin tocar el router ni el handler. Cuando entren campos numericos (fuerza,
+// inteligencia), subir de lista a mapa de config con tipo y rango por campo.
+export const FILTERABLE_TEXT_FIELDS = [
+  'name',
+  'alias',
+  'team',
+  'universe',
+] as const;
+
+// Campos filtrables de valor cerrado: en el front los elige un selector, asi
+// que la comparacion es EXACTA (case-insensitive), no "contiene". `status`
+// ademas se valida contra HERO_STATUSES en el router (400 si no pertenece al
+// dominio). `description` queda excluida por decision de diseño.
+export const FILTERABLE_EXACT_FIELDS = ['category', 'status'] as const;
 
 // Estados validos de un heroe. Fuente unica del dominio: la usan el modelo
 // (enum de mongoose), el router (validacion de entrada) y el DTO (tipo). Es
@@ -40,3 +51,20 @@ export const HERO_STATUSES_MESSAGE = `Status must be one of: ${HERO_STATUSES.joi
 // la libreria `slug` al crear un heroe, asi que un slug bien formado pero
 // inexistente cae en el 404 del handler, nunca en un 400.
 export const HERO_SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+
+// Content-Types aceptados y su extension para el mensaje de error
+export const ALLOWED_IMAGE_TYPES: Record<string, string> = {
+  'image/png': 'PNG',
+  'image/jpeg': 'JPG',
+};
+
+// `n` incluye `ñ` porque stripDiacritics convierte `ñ` -> `n`: sin eso
+// "espana" no encontraria "Espana" con virgulilla.
+export const ACCENT_VARIANTS: Record<string, string> = {
+  a: 'aáàäâã',
+  e: 'eéèëê',
+  i: 'iíìïî',
+  o: 'oóòöôõ',
+  u: 'uúùüû',
+  n: 'nñ',
+};

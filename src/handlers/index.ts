@@ -4,34 +4,13 @@ import { IHeroPageResponse } from '../dtos/hero.dto';
 import cloudinary from '../config/cloudinary';
 import type { UploadApiResponse } from 'cloudinary';
 import {
+  ALLOWED_IMAGE_TYPES,
   DEFAULT_ELEMENTS_PER_PAGE,
   DEFAULT_PAGE,
   EDITABLE_FIELDS,
-  FILTERABLE_TEXT_FIELDS,
 } from '../constants/default.constants';
 import slug from 'slug';
-
-// $regex recibe el input del usuario crudo: un caracter especial de regex
-// ('bat(', 'a.*') cambiaria el significado de la consulta o la haria
-// catastroficamente lenta (ReDoS). Se escapan todos los caracteres
-// especiales para que el termino busque como texto literal.
-const escapeRegex = (value: string) =>
-  value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-
-// Arma el filtro de Mongo desde el query string contra la whitelist. La
-// ruta ya valido que cada valor sea string; aca solo se decide si filtra
-// (valor no vacio) o se ignora (param fuera de la whitelist o vacio).
-const buildTextFilter = (query: Request['query']) => {
-  const filter: Record<string, unknown> = {};
-  for (const field of FILTERABLE_TEXT_FIELDS) {
-    const value = query[field];
-    const text = (Array.isArray(value) ? value[0] : value) ?? '';
-    if (text) {
-      filter[field] = { $regex: escapeRegex(String(text)), $options: 'i' };
-    }
-  }
-  return filter;
-};
+import { buildExactFilter, buildTextFilter } from '../helpers/utils.helpers';
 
 export const addHero = async (req: Request, resp: Response) => {
   const { name, alias } = req.body;
@@ -66,7 +45,12 @@ export const getHeroes = async (req: Request, resp: Response) => {
 
   // El count y el find usan el MISMO filtro: si el count ignorara los
   // filtros, total_elements y total_pages mintirian sobre el listado
-  const filter = buildTextFilter(req.query);
+  // Los dos whitelists son disjuntos (texto libre vs valor cerrado): el
+  // spread los combina sin pisarse y todos los filtros aplican semantica AND
+  const filter = {
+    ...buildTextFilter(req.query),
+    ...buildExactFilter(req.query),
+  };
   const totalElements = await Hero.countDocuments(filter);
   const totalPages = Math.ceil(totalElements / elementsPerPage);
 
@@ -187,12 +171,6 @@ export const deleteHero = async (req: Request, resp: Response) => {
   }
 
   resp.json({ msg: 'Hero deleted correctly.' });
-};
-
-// Content-Types aceptados y su extension para el mensaje de error
-export const ALLOWED_IMAGE_TYPES: Record<string, string> = {
-  'image/png': 'PNG',
-  'image/jpeg': 'JPG',
 };
 
 // Promesifica el upload_stream de Cloudinary: el buffer se escribe en el
