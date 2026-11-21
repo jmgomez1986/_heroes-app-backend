@@ -64,7 +64,7 @@ export const buildExactFilter = (query: Request['query']) => {
   const filter: Record<string, unknown> = {};
   for (const field of FILTERABLE_EXACT_FIELDS) {
     const value = firstQueryValue(query[field]).trim();
-    if (value) {
+    if (value && value !== 'all') {
       filter[field] = { $regex: `^${escapeRegex(value)}$`, $options: 'i' };
     }
   }
