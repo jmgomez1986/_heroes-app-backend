@@ -289,6 +289,7 @@ export const getHeroesStats = async (req: Request, resp: Response) => {
     const totalElements = await Hero.countDocuments();
     const totalHeroes = await Hero.countDocuments({ category: 'Hero' });
     const totalVillains = await Hero.countDocuments({ category: 'Villain' });
+    const totalAntiHeroes = await Hero.countDocuments({ category: 'Anti-hero' });
     // Estado: el enum del modelo garantiza que Active + Inactive + Deceased
     // cierra contra total_elements (no hay valores fuera del dominio).
     const totalActive = await Hero.countDocuments({ status: 'Active' });
@@ -299,6 +300,7 @@ export const getHeroesStats = async (req: Request, resp: Response) => {
       total_elements: totalElements,
       total_heroes: totalHeroes,
       total_villains: totalVillains,
+      total_anti_heroes: totalAntiHeroes,
       total_active: totalActive,
       total_inactive: totalInactive,
       total_deceased: totalDeceased,

@@ -64,7 +64,9 @@ export const buildExactFilter = (query: Request['query']) => {
   const filter: Record<string, unknown> = {};
   for (const field of FILTERABLE_EXACT_FIELDS) {
     const value = firstQueryValue(query[field]).trim();
-    if (value && value !== 'all') {
+    // "all" es el radio "Todos" del front y solo aplica a category; se omite
+    // sin importar el casing, igual que el resto del filtro exacto.
+    if (value && value.toLowerCase() !== 'all') {
       filter[field] = { $regex: `^${escapeRegex(value)}$`, $options: 'i' };
     }
   }
