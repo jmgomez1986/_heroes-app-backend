@@ -248,6 +248,53 @@ describe('GET /api/heroes filtering', () => {
     }
   });
 
+  it('filters by anti-hero category', async () => {
+    // Act: harley quinn es la anti-heroina del catalogo sembrado
+    const res = await request(app).get('/api/heroes?category=anti-hero');
+
+    // Assert
+    expect(res.status).toBe(200);
+    expect(res.body.total_elements).toBe(matchesExact('category', 'Anti-hero'));
+    expect(res.body.total_elements).toBeGreaterThan(0);
+    for (const hero of res.body.data) {
+      expect(hero.category).toBe('Anti-hero');
+    }
+  });
+
+  it('omits the category "all" selector and returns the whole catalog', async () => {
+    // Act: "all" es el radio "Todos" del front; no debe filtrar por una
+    // categoria inexistente, debe comportarse como un GET sin ese param
+    const res = await request(app).get('/api/heroes?category=all');
+
+    // Assert
+    expect(res.status).toBe(200);
+    expect(res.body.total_elements).toBe(catalogHeroes.length);
+    expect(res.body.data.length).toBeGreaterThan(0);
+  });
+
+  it('keeps the other filters when category is "all"', async () => {
+    // Act: omitir "all" no puede desactivar el resto de los filtros (AND)
+    const res = await request(app).get('/api/heroes?category=all&status=active');
+
+    // Assert
+    expect(res.status).toBe(200);
+    expect(res.body.total_elements).toBe(matchesExact('status', 'Active'));
+    expect(res.body.total_elements).toBeGreaterThan(0);
+    for (const hero of res.body.data) {
+      expect(hero.status).toBe('Active');
+    }
+  });
+
+  it('omits the category "all" selector regardless of casing', async () => {
+    // Act: el resto del filtro exacto es case-insensitive ($options: 'i'),
+    // asi que "ALL" tampoco debe caer en una categoria inexistente
+    const res = await request(app).get('/api/heroes?category=ALL');
+
+    // Assert
+    expect(res.status).toBe(200);
+    expect(res.body.total_elements).toBe(catalogHeroes.length);
+  });
+
   it('combines text and exact filters (AND semantics)', async () => {
     // Arrange
     const expected = catalogHeroes.filter(

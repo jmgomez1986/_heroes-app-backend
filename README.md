@@ -40,7 +40,7 @@ API REST para administrar un catálogo de superhéroes: creación, consulta pagi
 
 Los tests **no tocan la base de datos real**: los casos que consultan datos corren contra una **MongoDB en memoria** (`mongodb-memory-server`) que se crea y destruye con la suite. `NODE_ENV=test` (lo setea Vitest automáticamente) habilita el CORS para clientes sin `Origin`.
 
-Cobertura actual: validación de GET/POST (`400` con mensajes exactos, incluida la acumulación de errores), paginación completa del GET (defaults, ventanas exactas por `_id`, última página parcial, página inexistente con metadata intacta y colección vacía), **GET por slug** (200 con el documento sin `__v`, 404 con slug bien formado inexistente, 400 por slug requerido-vacío y por cada variante de formato inválido), **stats** (totales del catálogo, 500 con mensaje propio si la consulta falla y la ruta no sombreada por `/:slug`), **filtros de texto libre** (`name`/`alias`/`team`/`universe` con contains, normalización de acentos y artículo inicial), **filtros de valor cerrado** (`category`/`status` exactos, case-insensitive, 400 por status fuera del dominio), combinación AND entre filtros y paginado, y params fuera de la whitelist ignorados, ciclo de vida completo del CRUD contra Mongo en memoria — **POST** (201 con slug generado desde el alias, documento completo, persistencia, conflictos 409 por name/alias/slug), **PATCH** (semántica parcial, `name` inmutable, regeneración de slug por cambio de alias con invalidación de la URL vieja, 409 por colisión con otro héroe, casing que conserva el slug, 404) y **DELETE** (borrado real verificado en la colección y 404) — y subida de **imagen** (404, 415 por content-type, 400 por body vacío, 413 por el límite de 1MB del parser, 500 si Cloudinary falla dejando el héroe intacto, y 200 con la URL persistida; Cloudinary se **mockea** por ser un servicio externo de pago, todo lo demás corre real).
+Cobertura actual: validación de GET/POST (`400` con mensajes exactos, incluida la acumulación de errores), paginación completa del GET (defaults, ventanas exactas por `_id`, última página parcial, página inexistente con metadata intacta y colección vacía), **GET por slug** (200 con el documento sin `__v`, 404 con slug bien formado inexistente, 400 por slug requerido-vacío y por cada variante de formato inválido), **stats** (totales del catálogo por categoría —incluida `Anti-hero`— y por estado, 500 con mensaje propio si la consulta falla y la ruta no sombreada por `/:slug`), **filtros de texto libre** (`name`/`alias`/`team`/`universe` con contains, normalización de acentos y artículo inicial), **filtros de valor cerrado** (`category`/`status` exactos, case-insensitive, omisión de `all` solo en category, 400 por status fuera del dominio), combinación AND entre filtros y paginado, y params fuera de la whitelist ignorados, ciclo de vida completo del CRUD contra Mongo en memoria — **POST** (201 con slug generado desde el alias, documento completo, persistencia, conflictos 409 por name/alias/slug), **PATCH** (semántica parcial, `name` inmutable, regeneración de slug por cambio de alias con invalidación de la URL vieja, 409 por colisión con otro héroe, casing que conserva el slug, 404) y **DELETE** (borrado real verificado en la colección y 404) — y subida de **imagen** (404, 415 por content-type, 400 por body vacío, 413 por el límite de 1MB del parser, 500 si Cloudinary falla dejando el héroe intacto, y 200 con la URL persistida; Cloudinary se **mockea** por ser un servicio externo de pago, todo lo demás corre real).
 
 ## Variables de entorno
 
@@ -70,10 +70,10 @@ Base URL: `http://localhost:4000/api`
 | `alias` | — | Ídem |
 | `team` | — | Ídem; ignora el artículo inicial (`los vengadores` matchea `Vengadores`) |
 | `universe` | — | Ídem |
-| `category` | — | Exacto (`Hero` \| `Villain`), case-insensitive (selector en el front) |
+| `category` | — | Exacto (`Hero` \| `Villain` \| `Anti-hero`), case-insensitive (selector en el front); `all` = sin filtro (radio "Todos") |
 | `status` | — | Exacto (`Active` \| `Inactive` \| `Deceased`), case-insensitive; otro valor → `400` |
 
-Los filtros se **combinan** entre sí (AND) y con el paginado (`?name=bruce&elements_per_page=2`), y `total_elements` / `total_pages` reflejan el resultado filtrado, no el dataset completo. Los filtros de texto libre viven en `FILTERABLE_TEXT_FIELDS` y los de valor cerrado en `FILTERABLE_EXACT_FIELDS` (`src/constants/default.constants.ts`): sumar un campo de texto ahí agrega su validación y su filtro sin tocar el handler. La comparación de texto es "contiene", case-insensitive y **acento-insensitive**: `?team=jovenes` encuentra `Jóvenes Titanes` y `?team=los vengadores` encuentra `Vengadores` (el acento lo aporta el documento guardado, no el query). `description` no es filtrable. Un query param fuera de la whitelist se ignora (no filtra, no falla).
+Los filtros se **combinan** entre sí (AND) y con el paginado (`?name=bruce&elements_per_page=2`), y `total_elements` / `total_pages` reflejan el resultado filtrado, no el dataset completo. Los filtros de texto libre viven en `FILTERABLE_TEXT_FIELDS` y los de valor cerrado en `FILTERABLE_EXACT_FIELDS` (`src/constants/default.constants.ts`): sumar un campo de texto ahí agrega su validación y su filtro sin tocar el handler. La comparación de texto es "contiene", case-insensitive y **acento-insensitive**: `?team=jovenes` encuentra `Jóvenes Titanes` y `?team=los vengadores` encuentra `Vengadores` (el acento lo aporta el documento guardado, no el query). `description` no es filtrable. Un query param fuera de la whitelist se ignora (no filtra, no falla). `category=all` (el radio "Todos" del front) se omite sin importar el casing y devuelve el catálogo completo; los demás filtros siguen aplicando (AND). `all` es exclusivo de `category`: en `status`, cualquier valor fuera del dominio sigue respondiendo `400`.
 
 **200 OK:**
 
@@ -93,14 +93,18 @@ Pedir una página más allá de la última devuelve `data: []` con la metadata r
 
 ### `GET /heroes/stats` — Totales del catálogo
 
-Devuelve los contadores del catálogo sin paginación ni filtros.
+Devuelve los contadores del catálogo sin paginación ni filtros: totales generales, por categoría (`Hero` / `Villain` / `Anti-hero`) y por estado.
 
 ```json
 // GET /api/heroes/stats → 200
 {
   "total_elements": 25,
   "total_heroes": 18,
-  "total_villains": 7
+  "total_villains": 6,
+  "total_anti_heroes": 1,
+  "total_active": 21,
+  "total_inactive": 3,
+  "total_deceased": 1
 }
 ```
 

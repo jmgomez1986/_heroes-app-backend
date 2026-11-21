@@ -26,13 +26,14 @@ describe('GET /api/heroes/stats', () => {
     const res = await request(app).get('/api/heroes/stats');
 
     // Assert: 200 con los totales del catalogo sembrado (25 docs:
-    // 18 'Hero' + 7 'Villain'; por estado: 21 'Active', 3 'Inactive' y
-    // 1 'Deceased', que juntos cierran contra total_elements)
+    // 18 'Hero' + 6 'Villain' + 1 'Anti-hero'; por estado: 21 'Active',
+    // 3 'Inactive' y 1 'Deceased', que juntos cierran contra total_elements)
     expect(res.status).toBe(200);
     expect(res.body).toEqual({
       total_elements: 25,
       total_heroes: 18,
-      total_villains: 7,
+      total_villains: 6,
+      total_anti_heroes: 1,
       total_active: 21,
       total_inactive: 3,
       total_deceased: 1,
